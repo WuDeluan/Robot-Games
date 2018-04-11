@@ -21,8 +21,9 @@ public:
 	Gobang();
 	void Init_Board(); //初始化棋盘
 	void Print_Checkerboard(); //打印棋盘
-	int setBoard(int &x, char &y, int piece); //落子
-	int getBoard(int x, int y);
+	int setBoard(int x, int y, int piece); //落子
+	int setEmpty(int x, int y); //将棋盘位子置空
+	int getBoard(int x, int y); //返回棋盘位子状态
 };
 Gobang::Gobang()
 {
@@ -87,13 +88,22 @@ void Gobang::Print_Checkerboard()
 	}
 }
 
-int Gobang::setBoard(int &x, char &y, int Piece_Color)
+int Gobang::setBoard(int x, int y, int Piece_Color)
 {
-	x -= 1;
-	y -= 'A';
 	if (x >= 0 && x < 15 && y >= 0 && y < 15 && Board[x][y] == EMPTY) //在棋盘内，且为空
 	{
 		Board[x][y] = Piece_Color;
+		return 0;
+	}
+	else
+		return -1;
+}
+
+int Gobang::setEmpty(int x, int y)
+{
+	if (x >= 0 && x < 15 && y >= 0 && y < 15 ) //在棋盘内，且为空
+	{
+		Board[x][y] = EMPTY;
 		return 0;
 	}
 	else
