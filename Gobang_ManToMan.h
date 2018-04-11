@@ -8,7 +8,7 @@ class ManToMan : public Gobang
 public:
 	ManToMan();
 	int IsWin(int x, int y);//判断是否赢棋
-	void Print_Menu();
+	void Print_Menu1();
 };
 
 ManToMan::ManToMan()
@@ -16,6 +16,7 @@ ManToMan::ManToMan()
 	Init_Board();
 }
 
+//判断某一方是否连成五子
 int ManToMan::IsWin(int x, int y)
 {
 	int i, tx, ty, len;
@@ -43,7 +44,8 @@ int ManToMan::IsWin(int x, int y)
 	return -1;//为获胜
 }
 
-void ManToMan::Print_Menu()
+//打印人人博弈界面
+void ManToMan::Print_Menu1()
 {
 	int x;
 	char y;
@@ -52,8 +54,8 @@ void ManToMan::Print_Menu()
 	{
 		while (true) {
 			cout << "请黑方落子：";
-			cin >> x;
-			cin >> y;
+			cin >> x; x -= 1;
+			cin >> y; y -= 'A';
 			if (setBoard(x, y, BLACK) == -1)
 				cout << "请选择正确的位置落子！" << endl;
 			else
@@ -64,8 +66,8 @@ void ManToMan::Print_Menu()
 			cout << "黑方获胜!" << endl;
 		while (true) {
 			cout << "请白方落子：";
-			cin >> x;
-			cin >> y;
+			cin >> x; x -= 1;
+			cin >> y; y -= 'A';
 			if (setBoard(x, y, WHITE) == -1)
 				cout << "请选择正确的位置落子！" << endl;
 			else
