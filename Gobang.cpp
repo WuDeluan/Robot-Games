@@ -5,6 +5,7 @@
 int main()
 {
 	ManToMan Gobang1 =  ManToMan();
-	Gobang1.Print_Menu();
+	//Gobang1.Print_Menu1();
 	ManToCom Gobang2 = ManToCom();
+	Gobang2.Print_Menu2();
 }
