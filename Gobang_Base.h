@@ -13,6 +13,13 @@ using namespace std;
 #define WHITE  2 //白子
 int Direct[4][2] = { { 1,-1 },{ 1,0 },{ 1,1 },{ 0,1 } };
 
+struct Step {
+	int x, y;
+};
+
+Step Lib[8][13] = {
+};
+
 class Gobang
 {
 private:
