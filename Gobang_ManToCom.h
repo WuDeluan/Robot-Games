@@ -4,19 +4,24 @@
 #include "Gobang_ManToMan.h"
 #include <stack>
 
-#define MAN 1
-#define COM 2
+#define random(a,b) (rand()%(b-a+1)+a)
 #define INIFITY 100000
 
 class ManToCom : public ManToMan
 {
 public:
 	ManToCom();
+	int MAN, COM;
 	int Eval(int x, int y); //估值函数
 	int Function(int len, string side1, string side2); //棋型判断
-	int minmaxSearch(int depth,int &x,int &y); //极大极小值判断
-	int MaxSearch(int depth, int x, int y); 
-	int MinSearch(int depth,int x,int y);
+	int minmaxSearch(int depth, int &x, int &y); //极大极小值判断
+	int MaxSearch(int depth, int x, int y);
+	int MinSearch(int depth, int x, int y);
+	void FirstStep(int who_first);
+	void SecondStep(Step step[]);
+	void ThirdStep(Step step[]);
+	int WhetherChange(Step step[]);
+	void ForthStep(Step step[]);
 	void Print_Menu2(); //打印人机对弈界面
 };
 
@@ -69,7 +74,6 @@ int ManToCom::Eval(int x, int y)
 		if (value > bestValue)
 			bestValue = value;
 	}
-	//cout << bestValue << endl;
 	return bestValue;
 }
 
@@ -78,71 +82,86 @@ int ManToCom::Function(int len, string side1, string side2)
 	int Value = 0;
 	if (len >= 5)
 	{
-		cout << "五连" << endl; Value += 100000;
+		//cout << "五连" << endl; 
+		Value += 100000;
 	}
 	else if (len == 4)
 	{
 		if (side1[0] == '#' && side2[0] == '#')
 		{
-			cout << "活四" << endl; Value += 10000;
+			//cout << "活四" << endl;
+			Value += 10000;
 		}
 		else if (side1[0] == '1' && side2[0] == '#' || side1[0] == '#' && side2[0] == '1')
 		{
-			cout << "冲四" << endl; Value += 5000;
+			//cout << "冲四" << endl;
+			Value += 5000;
 		}
 		else if (side1[0] == '#' && side2.compare(0, 2, "#0") == 0 || side1.compare(0, 2, "#0") == 0 && side2[0] == '#')
 		{
-			cout << "冲四" << endl; Value += 5000;
+			//cout << "冲四" << endl; 
+			Value += 5000;
 		}
 		else if (side1[0] == '1' && side2[0] == '1')
 		{
-			cout << "死四" << endl; Value += 1000;
+			//cout << "死四" << endl;
+			Value += 1000;
 		}
 	}
 	else if (len == 3)
 	{
 		if (side1[0] == '1' && side2.compare(0, 2, "#0") == 0 || side1.compare(0, 2, "#0") == 0 && side2[0] == '1')
 		{
-			cout << "冲四" << endl; Value += 5000;
+			//cout << "冲四" << endl;
+			Value += 5000;
 		}
 		else if (side1.compare(0, 2, "##") == 0 && side2.compare(0, 2, "##") == 0)
 		{
-			cout << "连活三" << endl; Value += 1000;
+			//cout << "连活三" << endl;
+			Value += 1000;
 		}
 		else if (side1[0] == '1' && side2.compare(0, 2, "##") == 0 || side1.compare(0, 2, "##") == 0 && side2[0] == '1')
 		{
-			cout << "眠三" << endl; Value += 500;
+			//cout << "眠三" << endl;
+			Value += 500;
 		}
 		else if (side1.compare(0, 2, "#1") == 0 && side2.compare(0, 2, "#1") == 0)
 		{
-			cout << "眠三" << endl; Value += 500;
+			//cout << "眠三" << endl; 
+			Value += 500;
 		}
 		else if (side1[0] == '1' && side2[0] == '1')
 		{
-			cout << "死三" << endl; Value += 100;
+			//cout << "死三" << endl; 
+			Value += 100;
 		}
 	}
 	else if (len == 2)
 	{
 		if (side1 == "#00" || side2 == "#00")
 		{
-			cout << "冲四" << endl; Value += 5000;
+			//cout << "冲四" << endl;
+			Value += 5000;
 		}
 		else if (side1[0] == '#' && side2 == "#0#" || side1 == "#0#" && side2[0] == '#')
 		{
-			cout << "跳活三" << endl; Value += 1000;
+			//cout << "跳活三" << endl;
+			Value += 1000;
 		}
 		else if (side1[0] == '1' && side2 == "#1#" || side1 == "#1#" && side2[0] == '1')
 		{
-			cout << "眠三" << endl; Value += 500;
+			//cout << "眠三" << endl;
+			Value += 500;
 		}
 		else if (side1[0] == '#' && side2 == "10#" || side1 == "10#" && side2[0] == '#')
 		{
-			cout << "眠三" << endl; Value += 500;
+			//cout << "眠三" << endl;
+			Value += 500;
 		}
 		else if (side1 == "##0" || side2 == "##0")
 		{
-			cout << "眠三" << endl; Value += 500;
+			//cout << "眠三" << endl;
+			Value += 500;
 		}
 		//其他情况待补充
 		else
@@ -160,73 +179,72 @@ int ManToCom::Function(int len, string side1, string side2)
 				neighbor[i - x + 2][j - y + 2] = getBoard(i, j);
 			else
 				neighbor[i - x + 2][j - y + 2] = OVERSIZE;
-		
+
 	return 0;
 }
 */
 
-int ManToCom::minmaxSearch(int depth,int &tx,int &ty)
+int ManToCom::minmaxSearch(int depth, int &tx, int &ty)
 {
-	stack<int>  bestMovesX, bestMovesY;
+	stack<int> bestMoveX, bestMoveY;
 	int x, y;
-	static int bestValue = -INIFITY;
+	int bestValue = -INIFITY;
 	if (depth == 0)
-		return Eval(tx,ty);
+		return Eval(tx, ty);
 	else
 	{
-		for (x = tx - 4; x <= tx + 4; x++)
+		for (x = 0; x <= 14; x++)
 		{
 			for (y = ty - 4; y <= ty + 4; y++)
 			{
-				if (x >= 0 && x < 15 && y >= 0 && y < 15 && getBoard(x,y) == EMPTY)
+				if (x >= 0 && x < 15 && y >= 0 && y < 15 && getBoard(x, y) == EMPTY)
 				{
 					setBoard(x, y, COM); //Print_Checkerboard();
-					if (Eval(x,y) == +INIFITY)
+					if (Eval(x, y) == +INIFITY)
 					{
-						tx = bestMovesX.top();
-						ty = bestMovesY.top();
-						setEmpty(x,y);// Print_Checkerboard();
-						return 0;
+						bestMoveX.push(x);
+						bestMoveY.push(y);
+						setEmpty(x, y);// Print_Checkerboard();
+						break;
 					}
 					int value = MinSearch(depth - 1, x, y);
 					//cout << value << endl;
 					if (value > bestValue)
 					{
 						bestValue = value;
-						bestMovesX.push(x);
-						bestMovesY.push(y);
+						bestMoveX.push(x);
+						bestMoveY.push(y);
+
 					}
 					else if (value == bestValue)
 					{
-						bestMovesX.push(x);
-						bestMovesY.push(y);
+						bestMoveX.push(x);
+						bestMoveY.push(y);
 					}
-					setEmpty(x,y);// Print_Checkerboard();
-					//cout << bestValue << " #" << endl;
+					setEmpty(x, y);// Print_Checkerboard();
 				}
 			}
 		}
 	}
-	tx = bestMovesX.top();
-	ty = bestMovesY.top();
-	return 0;
+	tx = bestMoveX.top();
+	ty = bestMoveY.top();
 }
 
-int ManToCom::MaxSearch(int depth,int tx,int ty)
+int ManToCom::MaxSearch(int depth, int tx, int ty)
 {
 	int bestValue = -INIFITY, x, y;
 	if (depth == 0)
-		return Eval(tx,ty);
+		return Eval(tx, ty);
 	else
 	{
 		int value;
-		for (x = tx - 4;x <= tx + 4;x++)
+		for (x = 0; x <= 14; x++)
 		{
-			for (y = ty - 4; y <= ty + 4; y++)
+			for (y = 0; y <= 14; y++)
 			{
-				if (x >= 0 && x < 15 && y >= 0 && y < 15 && getBoard(x,y) == EMPTY)
+				if (x >= 0 && x < 15 && y >= 0 && y < 15 && getBoard(x, y) == EMPTY)
 				{
-					setBoard(x, y, COM);// Print_Checkerboard();
+					setBoard(x, y, COM); //Print_Checkerboard();
 					value = MinSearch(depth - 1, x, y);
 					//cout << value << endl;
 					if (value > bestValue)
@@ -236,10 +254,11 @@ int ManToCom::MaxSearch(int depth,int tx,int ty)
 			}
 		}
 	}
+	//cout <<"MAX   "<< bestValue << endl;
 	return bestValue;
 }
 
-int ManToCom::MinSearch(int depth,int tx,int ty)
+int ManToCom::MinSearch(int depth, int tx, int ty)
 {
 	int bestValue = INFINITY, x, y;
 	if (depth == 0)
@@ -247,15 +266,15 @@ int ManToCom::MinSearch(int depth,int tx,int ty)
 	else
 	{
 		int value;
-		for (x = tx - 4;x <= tx + 4;x++)
+		for (x = 0; x <= 14; x++)
 		{
-			for (y = ty - 4; y <= ty + 4; y++)
+			for (y = 0; y <= 14; y++)
 			{
 				if (x >= 0 && x < 15 && y >= 0 && y < 15 && getBoard(x, y) == EMPTY)
 				{
-					setBoard(x, y, MAN);// Print_Checkerboard();
+					setBoard(x, y, MAN); //Print_Checkerboard();
 					value = MaxSearch(depth - 1, x, y);
-					cout << value << endl;
+					//cout << value << endl;
 					if (value < bestValue)
 						bestValue = value;
 					setEmpty(x, y); //Print_Checkerboard();
@@ -263,35 +282,231 @@ int ManToCom::MinSearch(int depth,int tx,int ty)
 			}
 		}
 	}
+	//cout << "MIN   " << bestValue << endl;
 	return bestValue;
+}
+
+void ManToCom::FirstStep(int who_first)
+{
+	int x;
+	char y;
+
+	//人先手
+	if (who_first == 1)
+	{
+		MAN = BLACK;
+		COM = WHITE;
+		while (true) {
+			cout << "请落子：";
+			cin >> x; x -= 1;
+			cin >> y; y -= 'A';
+			if (setBoard(x, y, MAN) == 0 && x == 7 && y == 7) //是否下在中心
+				break;
+			else
+				cout << "请选择正确的位置落子！" << endl;
+		}
+		Print_Checkerboard();
+	}
+	//电脑先手
+	else if (who_first == 2)
+	{
+		COM = BLACK;
+		MAN = WHITE;
+		setBoard(7, 7, COM); //下在中心
+		Print_Checkerboard();
+	}
+}
+
+void ManToCom::SecondStep(Step step[])
+{
+	int x;
+	char y;
+
+	//人先手
+	if (MAN == WHITE)
+	{
+		while (true) {
+			cout << "请落子：";
+			cin >> x; x -= 1;
+			cin >> y; y -= 'A';
+			if (setBoard(x, y, MAN) == 0 && x >= 6 && x <= 8 && y >= 6 && y <= 8) //是否下在3*3范围内
+				break;
+			else
+				cout << "请选择正确的位置落子！" << endl;
+		}
+		step[0].x = x;
+		step[0].y = y;
+		Print_Checkerboard();
+	}
+	//电脑先手
+	else if (COM == WHITE)
+	{
+		int m, n;
+		srand((unsigned)time(NULL));
+		do {
+			m = random(6, 8);
+			n = random(6, 8);
+		} while (setBoard(m, n, COM) != 0);
+		step[0].x = m;
+		step[0].y = n;
+		Print_Checkerboard();
+	}
+}
+
+void ManToCom::ThirdStep(Step step[])
+{
+	int x;
+	char y;
+
+	//人先手
+	if (MAN == BLACK)
+	{
+		while (true) {
+			cout << "请落子：";
+			cin >> x; x -= 1;
+			cin >> y; y -= 'A';
+			if (setBoard(x, y, MAN) == 0 && x >= 5 && x <= 9 && y >= 5 && y <= 9) //是否下在5*5范围内
+				break;
+			else
+				cout << "请选择正确的位置落子！" << endl;
+		}
+		step[1].x = x;
+		step[1].y = y;
+		Print_Checkerboard();
+	}
+	//电脑先手
+	else if (COM == BLACK)
+	{
+		int m, n;
+		srand((unsigned)time(NULL));
+		do {
+			m = random(5, 9);
+			n = random(5, 9);
+		} while (setBoard(m, n, COM) != 0);
+		step[1].x = m;
+		step[1].y = n;
+		Print_Checkerboard();
+	}
+}
+
+int ManToCom::WhetherChange(Step step[])
+{
+	int k, i;
+	if (step[0].x != 7 && step[0].y != 7) //不在中线上
+	{
+		if (step[0].x == 6 && step[0].y == 6)
+			k = 0;
+		else if (step[0].x == 6 && step[0].y == 8)
+			k = 1;
+		else if (step[0].x == 8 && step[0].y == 6)
+			k = 2;
+		else if (step[0].x == 8 && step[0].y == 8)
+			k = 3;
+	}
+	else
+	{
+		if (step[0].x == 7 && step[0].y == 6)
+			k = 4;
+		else if (step[0].x == 6 && step[0].y == 7)
+			k = 5;
+		else if (step[0].x == 8 && step[0].y == 7)
+			k = 6;
+		else if (step[0].x == 7 && step[0].y == 8)
+			k = 7;
+	}
+
+	for (i = 0; i < 13; i++)
+	{
+
+	}
+
+	return 0;
+}
+
+void ManToCom::ForthStep(Step step[])
+{
+	int t, m;
+	cout << "是否交换？ 1.是   2.否" << endl;
+
+	if (MAN == WHITE)
+	{
+		cin >> m;
+		if (m == 1)
+		{
+			cout << "白方选择交换" << endl;
+			t = COM;
+			COM = MAN;
+			MAN = t;
+		}
+		else
+			cout << "白方选择不交换" << endl;
+	}
+	else
+	{
+		if (WhetherChange(step) == 0)
+		{
+			cout << "白方选择交换" << endl;
+			t = COM;
+			COM = MAN;
+			MAN = t;
+		}
+		else
+			cout << "白方选择不交换" << endl;
+	}
+
 }
 
 void ManToCom::Print_Menu2()
 {
-	int x;
+	int x, tx, ty, who_first;
 	char y;
+	Step step[2];
+	//确定是否先手
 	Print_Checkerboard();
+	cout << "请选择是否先手\n1.是\t2.否" << endl;
+	cin >> who_first;
+
+	FirstStep(who_first);
+	SecondStep(step);
+	ThirdStep(step);
+	ForthStep(step);
+
+	if (COM == WHITE)
+	{
+		tx = step[1].x;
+		ty = step[1].y;
+		minmaxSearch(1, tx, ty);
+		setBoard(tx, ty, COM);
+		Print_Checkerboard();
+	}
 	while (1)
 	{
 		while (true) {
-			cout << "请黑方落子：";
+			cout << "请落子：";
 			cin >> x; x -= 1;
 			cin >> y; y -= 'A';
-			if (setBoard(x, y, BLACK) == -1)
+			if (setBoard(x, y, MAN) == -1)
 				cout << "请选择正确的位置落子！" << endl;
 			else
 				break;
 		}
 		Print_Checkerboard();
-		if (IsWin(x, y) == 1)
-			cout << "黑方获胜!" << endl;
-		int tx = x, ty = y;
-		minmaxSearch(1, tx, ty);
-		setBoard(tx, ty, WHITE);
+		if (IsWin(x, y) == 0)
+		{
+			cout << "恭喜你获胜了!" << endl;
+			break;
+		}
+		tx = x, ty = y;
+		minmaxSearch(2, tx, ty);
+		setBoard(tx, ty, COM);
 		Print_Checkerboard();
-		if (IsWin(x, y) == 1)
-			cout << "白方获胜!" << endl;
+		if (IsWin(tx, ty) == 0)
+		{
+			cout << "很遗憾你输了!" << endl;
+			break;
+		}
 	}
 }
+
 #endif
 
