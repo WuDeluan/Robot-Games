@@ -193,7 +193,7 @@ int ManToCom::minmaxSearch(int depth, int &tx, int &ty)
 		return Eval(tx, ty);
 	else
 	{
-		for (x = 0; x <= 14; x++)
+		for (x = tx - 4; x <= tx + 4; x++)
 		{
 			for (y = ty - 4; y <= ty + 4; y++)
 			{
@@ -238,15 +238,15 @@ int ManToCom::MaxSearch(int depth, int tx, int ty)
 	else
 	{
 		int value;
-		for (x = 0; x <= 14; x++)
+		for (x = tx - 4; x <= tx + 4; x++)
 		{
-			for (y = 0; y <= 14; y++)
+			for (y = ty - 4; y <= ty + 4; y++)
 			{
 				if (x >= 0 && x < 15 && y >= 0 && y < 15 && getBoard(x, y) == EMPTY)
 				{
 					setBoard(x, y, COM); //Print_Checkerboard();
 					value = MinSearch(depth - 1, x, y);
-					//cout << value << endl;
+					cout << value << endl;
 					if (value > bestValue)
 						bestValue = value;
 					setEmpty(x, y); //Print_Checkerboard();
@@ -266,9 +266,9 @@ int ManToCom::MinSearch(int depth, int tx, int ty)
 	else
 	{
 		int value;
-		for (x = 0; x <= 14; x++)
+		for (x = tx - 4; x <= tx + 4; x++)
 		{
-			for (y = 0; y <= 14; y++)
+			for (y = ty - 4; y <= ty + 4; y++)
 			{
 				if (x >= 0 && x < 15 && y >= 0 && y < 15 && getBoard(x, y) == EMPTY)
 				{
@@ -391,35 +391,18 @@ void ManToCom::ThirdStep(Step step[])
 
 int ManToCom::WhetherChange(Step step[])
 {
-	int k, i;
-	if (step[0].x != 7 && step[0].y != 7) //不在中线上
+	int k, i, j;
+	for (i = 0; i < 8; i++)
 	{
-		if (step[0].x == 6 && step[0].y == 6)
-			k = 0;
-		else if (step[0].x == 6 && step[0].y == 8)
-			k = 1;
-		else if (step[0].x == 8 && step[0].y == 6)
-			k = 2;
-		else if (step[0].x == 8 && step[0].y == 8)
-			k = 3;
+		if (step[0].x == Lib[i]->x && step[0].y == Lib[i]->y)
+		{
+			for (j = 1; j <= 4; j++)
+			{
+				if (step[1].x == Lib[i][j].x && step[1].y == Lib[i][j].y)
+					  return -1;
+			}
+		}
 	}
-	else
-	{
-		if (step[0].x == 7 && step[0].y == 6)
-			k = 4;
-		else if (step[0].x == 6 && step[0].y == 7)
-			k = 5;
-		else if (step[0].x == 8 && step[0].y == 7)
-			k = 6;
-		else if (step[0].x == 7 && step[0].y == 8)
-			k = 7;
-	}
-
-	for (i = 0; i < 13; i++)
-	{
-
-	}
-
 	return 0;
 }
 
