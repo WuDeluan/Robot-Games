@@ -12,6 +12,7 @@ class ManToCom : public ManToMan
 public:
 	ManToCom();
 	int MAN, COM;
+	int POINTSNUMBERS; //打点数
 	int Eval(int x, int y); //估值函数
 	int Function(int len, string side1, string side2); //棋型判断
 	int minmaxSearch(int depth, int &x, int &y); //极大极小值判断
@@ -22,6 +23,8 @@ public:
 	void ThirdStep(Step step[]);
 	int WhetherChange(Step step[]);
 	void ForthStep(Step step[]);
+	void Symmetry(Step step[], Step NewStep[]);
+	void FifthStep(Step step[]);
 	void Print_Menu2(); //打印人机对弈界面
 };
 
@@ -399,7 +402,7 @@ int ManToCom::WhetherChange(Step step[])
 			for (j = 1; j <= 4; j++)
 			{
 				if (step[1].x == Lib[i][j].x && step[1].y == Lib[i][j].y)
-					  return -1;
+					return -1;
 			}
 		}
 	}
@@ -408,7 +411,8 @@ int ManToCom::WhetherChange(Step step[])
 
 void ManToCom::ForthStep(Step step[])
 {
-	int t, m;
+	int t, m, x, tx, ty;
+	char y;
 	cout << "是否交换？ 1.是   2.否" << endl;
 
 	if (MAN == WHITE)
@@ -437,13 +441,167 @@ void ManToCom::ForthStep(Step step[])
 			cout << "白方选择不交换" << endl;
 	}
 
+	if (COM == WHITE)
+	{
+		tx = step[1].x;
+		ty = step[1].y;
+		minmaxSearch(1, tx, ty);
+		setBoard(tx, ty, COM);
+		step[2].x = tx;
+		step[2].y = ty;
+		Print_Checkerboard();
+	}
+	else
+	{
+		while (true) {
+			cout << "请落子：";
+			cin >> x; x -= 1;
+			cin >> y; y -= 'A';
+			if (setBoard(x, y, MAN) == -1)
+				cout << "请选择正确的位置落子！" << endl;
+			else
+				break;
+		}
+		step[2].x = x;
+		step[2].y = y;
+		Print_Checkerboard();
+	}
 }
 
+void ManToCom::Symmetry(Step step[], Step NewStep[])
+{
+	int i;
+	if (step[0].x == 7 && step[0].y == 6)
+	{
+		for (i = 0; i < 3; i++)
+		{
+			NewStep[i].x = step[i].y;
+			NewStep[i].y = step[i].x;
+		}
+	}
+	else if (step[0].x == 8 && step[0].y == 7)
+	{
+		for (i = 0; i < 3; i++)
+		{
+			NewStep[i].x = 14 - step[i].x;
+			NewStep[i].y = step[i].y;
+		}
+	}
+	else if (step[0].x == 7 && step[0].y == 8)
+	{
+		for (i = 0; i < 3; i++)
+		{
+			NewStep[i].x = 14 - step[i].y;
+			NewStep[i].y = 14 - step[i].x;
+		}
+	}
+	else if (step[0].x == 6 && step[0].y == 6)
+	{
+		for (i = 0; i < 3; i++)
+		{
+			NewStep[i].x = step[i].x;
+			NewStep[i].y = 14 - step[i].y;
+		}
+	}
+	else if (step[0].x == 8 && step[0].y == 6)
+	{
+		for (i = 0; i < 3; i++)
+		{
+			NewStep[i].x = step[i].y;
+			NewStep[i].y = step[i].x;
+		}
+	}
+	else if (step[0].x == 8 && step[0].y == 8)
+	{
+		for (i = 0; i < 3; i++)
+		{
+			NewStep[i].x = step[i].y;
+			NewStep[i].y = 14 - step[i].x;
+		}
+	}
+	else
+
+	{
+		for (i = 0; i < 3; i++)
+		{
+			NewStep[i].x = step[i].x;
+			NewStep[i].y = step[i].y;
+		}
+	}
+}
+
+void ManToCom::FifthStep(Step step[])
+{
+	Step NewStep[3] = { 0 };
+	Step Points[3] = { 0 };
+	Symmetry(step, NewStep);
+	int i, j, k, x;
+	char y;
+	if (NewStep[0].x == 7 || NewStep[0].y == 7)
+	{
+		for (i = 12; i < 24; i++)
+			if (NewStep[1].x == Lib2[i][0].x - 1 && NewStep[1].y == Lib2[i][0].y - 1)
+				for (j = 1; j < 5; j++)
+					if (NewStep[2].x == Lib2[i][j].x - 1 && NewStep[2].y == Lib2[i][j].y - 1)
+						k = Lib2[i][5].x + j;
+	}
+	else
+	{
+		for (i = 0; i < 12; i++)
+			if (NewStep[1].x == Lib2[i][0].x - 1 && NewStep[1].y == Lib2[i][0].y - 1)
+				for (j = 1; j < 5; j++)
+					if (NewStep[2].x == Lib2[i][j].x - 1 && NewStep[2].y == Lib2[i][j].y - 1)
+						k = Lib2[i][5].x + j;
+	}
+
+	if (COM == BLACK) {
+		for (i = 0; i < POINTSNUMBERS; i++)
+		{
+			setBoard(Lib3[k][i].x - 1, Lib3[k][i].y - 1, BLACK);
+		}
+		Print_Checkerboard();
+		cout << "请选择保留的黑子";
+		cin >> x; x -= 1;
+		cin >> y; y -= 'A';
+		for (i = 0; i < POINTSNUMBERS; i++)
+		{
+			if (x == Lib3[k][i].x - 1 && y == Lib3[k][i].y - 1)
+				;
+			else
+				setEmpty(Lib3[k][i].x - 1, Lib3[k][i].y - 1);
+		}
+		Print_Checkerboard();
+	}
+	else
+	{
+		cout << "请打点";
+		for (i = 0; i < POINTSNUMBERS; i++)
+		{
+			cin >> x;
+			cin >> y;
+			Points[i].x = x - 1;
+			Points[i].y = y - 'A';
+		}
+		Print_Checkerboard();
+		for (i = 0, j = 0; i < POINTSNUMBERS; i++)
+		{
+			if (Points[i].x == Lib3[k][i].x - 1 && Points[i].y - 1)
+			{
+				setEmpty(Lib3[k][i].x - 1, Lib3[k][i].y - 1);
+				j++;
+			}
+			if (j == POINTSNUMBERS - 1)
+				break;;
+		}
+		Print_Checkerboard();
+	}
+
+}
 void ManToCom::Print_Menu2()
 {
 	int x, tx, ty, who_first;
 	char y;
-	Step step[2];
+	Step step[3];
 	//确定是否先手
 	Print_Checkerboard();
 	cout << "请选择是否先手\n1.是\t2.否" << endl;
@@ -453,8 +611,9 @@ void ManToCom::Print_Menu2()
 	SecondStep(step);
 	ThirdStep(step);
 	ForthStep(step);
+	FifthStep(step);
 
-	if (COM == WHITE)
+	if (COM == BLACK)
 	{
 		tx = step[1].x;
 		ty = step[1].y;
@@ -462,6 +621,7 @@ void ManToCom::Print_Menu2()
 		setBoard(tx, ty, COM);
 		Print_Checkerboard();
 	}
+
 	while (1)
 	{
 		while (true) {
