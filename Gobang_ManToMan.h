@@ -62,7 +62,7 @@ void ManToMan::Print_Menu1()
 				break;
 		}
 		Print_Checkerboard();
-		if (IsWin(x, y) == 1)
+		if (IsWin(x, y) == 0)
 			cout << "黑方获胜!" << endl;
 		while (true) {
 			cout << "请白方落子：";
@@ -74,7 +74,7 @@ void ManToMan::Print_Menu1()
 				break;
 		}
 		Print_Checkerboard();
-		if (IsWin(x, y) == 1)
+		if (IsWin(x, y) == 0)
 			cout << "白方获胜!" << endl;
 	}
 }
