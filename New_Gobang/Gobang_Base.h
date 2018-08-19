@@ -13,128 +13,151 @@ using namespace std;
 #define EMPTY  -100 //空子
 #define BLACK  -101 //黑子
 #define WHITE  -102 //白子
-int Direct[4][2] = { { 1,-1 },{ 1,0 },{ 1,1 },{ 0,1 } };
+#define random(a,b) (rand()%(b-a+1)+a) //取值范围为[a,b]的随机数
+#define E 4
+#define F 5
+#define G 6
+#define H 7 
+#define I 8
+#define J 9 
+#define K 10
 
 struct Step {
 	int x, y, color;
 };
+typedef struct Point {
+	int x;
+	int y;
+};
+static int Board[15][15]; //棋盘
+static int points; //打点数
+static Point steps[5]; //棋子位置记录
+static int Direct[4][2] = { { 1,-1 },{ 1,0 },{ 1,1 },{ 0,1 } };
 
+//26这种开局的黑3位置坐标，前13个为直指开局，后13个为斜指开局
+static Point Lib[26] = {
+	{ 10,H },{ 10,I },{ 10,J },{ 9,I },{ 9,J },{ 8,I },
+{ 8,J },{ 7,H },{ 7,I },{ 7,J },{ 6,H },{ 6,I },{ 6,J },
+{ 10,J },{ 9,J },{ 8,J },{ 7,J },{ 6,J },{ 8,I },{ 7,I },
+{ 6,I },{ 7,H },{ 6,H },{ 7,G },{ 6,G },{ 5,G }
+};
+
+//三手交换中可交换的位置坐标，每行首个坐标为白2，其他为对应的黑3
+static Point Lib1[8][5] = {
+	{ 9,G,10,F,6,F,10,J,6,J },
+{ 9,I,10,F,6,F,10,J,6,J },
+{ 7,G,10,F,6,F,10,J,6,J },
+{ 7,I,10,F,6,F,10,J,6,J },
+{ 9,H,6,F,6,J },{ 8,G,10,J,6,J },
+{ 8,I,10,F,6,F },{ 7,H,10,F,10,J },
+};
 
 class Gobang
 {
 private:
-	int Board[15][15]; //棋盘
-	stack <int> sx;
-	stack <int> sy;
+	stack <int> sx; //记录下棋步骤
+	stack <int> sy; //记录下棋步骤
 public:
-	Gobang();
-	void Init_Board(); //初始化棋盘
-	void Print_Checkerboard(); //打印棋盘
-	int setBoard(int x, int y, int piece); //落子
-	int setEmpty(int x, int y); //将棋盘位子置空
-	int getBoard(int x, int y); //返回棋盘位子状态
-	int setBack();
-};
-Gobang::Gobang()
-{
-	Init_Board();
-}
-
-void Gobang::Init_Board()
-{
-	int i, j;
-	for (i = 0; i < 15; i++)
-		for (j = 0; j < 15; j++)
-			Board[i][j] = EMPTY;
-}
-
-void Gobang::Print_Checkerboard()
-{
-	int i, j;
-	//system("cls");
-	//cout << "----------五子棋人人对弈程序----------\n" << endl;
-	cout << "  A B C D E F G H I J K L M N O" << endl;
-	for (i = 0; i < 15; i++)
+	Gobang()
 	{
-		cout << setw(2) << 15 - i;
-		for (j = 0;j < 15;j++)
+		Init_Board(); 
+	}
+
+	void Init_Board() //初始化棋盘
+	{
+		int i, j;
+		for (i = 0; i < 15; i++)
+			for (j = 0; j < 15; j++)
+				Board[i][j] = EMPTY; //将棋盘全部置空
+	}
+
+	void Print_Checkerboard() //打印棋盘
+	{
+		int i, j;
+		cout << "  A B C D E F G H I J K L M N O" << endl;
+		for (i = 0; i < 15; i++)
 		{
-			if (Board[i][j] == BLACK)
-				cout << "○";
-			else if (Board[i][j] == WHITE)
-				cout << "●";
-			else
+			cout << setw(2) << 15 - i;
+			for (j = 0; j < 15; j++)
 			{
-				if (i == 0)
-				{
-					if (j == 0)
-						cout << "┌ ";
-					else if (j == 14)
-						cout << "┐ ";
-					else
-						cout << "┬ ";
-				}
-				else if (i == 14)
-				{
-					if (j == 0)
-						cout << "└ ";
-					else if (j == 14)
-						cout << "┘ ";
-					else
-						cout << "┴ ";
-				}
+				if (Board[i][j] == BLACK) //打印黑子
+					cout << "○";
+				else if (Board[i][j] == WHITE) //打印白子
+					cout << "●";
 				else
 				{
-					if (j == 0)
-						cout << "├ ";
-					else if (j == 14)
-						cout << "┤ ";
+					if (i == 0)
+					{
+						if (j == 0)
+							cout << "┌ ";
+						else if (j == 14)
+							cout << "┐ ";
+						else
+							cout << "┬ ";
+					}
+					else if (i == 14)
+					{
+						if (j == 0)
+							cout << "└ ";
+						else if (j == 14)
+							cout << "┘ ";
+						else
+							cout << "┴ ";
+					}
 					else
-						cout << "┼ ";
+					{
+						if (j == 0)
+							cout << "├ ";
+						else if (j == 14)
+							cout << "┤ ";
+						else
+							cout << "┼ ";
+					}
 				}
 			}
+			cout << endl;
 		}
-		cout << endl;
 	}
-}
 
-int Gobang::setBoard(int x, int y, int Piece_Color)
-{
-	if (x >= 0 && x < 15 && y >= 0 && y < 15 && Board[x][y] == EMPTY) //在棋盘内，且为空
+	int setBoard(int x, int y, int Piece_Color) //落子
 	{
-		Board[x][y] = Piece_Color;
-		sx.push(x); sy.push(y);
-		return 0;
+		if (x >= 0 && x < 15 && y >= 0 && y < 15 && Board[x][y] == EMPTY) //在棋盘内，且为空
+		{
+			Board[x][y] = Piece_Color;
+			sx.push(x); sy.push(y); //记录下棋步骤
+			return 0;
+		}
+		else
+			return -1;
 	}
-	else
+
+	int setEmpty(int x, int y) //将棋盘位子置空
+	{
+		if (x >= 0 && x < 15 && y >= 0 && y < 15) //在棋盘内，且为空
+		{
+			Board[x][y] = EMPTY;
+			return 0;
+		}
+		else
+			return -1;
+	}
+
+	int getBoard(int x, int y) //返回棋盘位子状态
+	{
+		return Board[x][y];
+	}
+
+	int setBack()
+	{
+		if (!sx.empty() && !sy.empty()) //判断栈中是否有元素
+		{
+			int x = sx.top(); sx.pop(); //从栈中抛出上一步的棋子坐标
+			int y = sy.top(); sy.pop();
+			Gobang::setEmpty(x, y); //将坐标所在的位置置空
+			return 0;
+		}
 		return -1;
-}
-
-int Gobang::setEmpty(int x, int y)
-{
-	if (x >= 0 && x < 15 && y >= 0 && y < 15) //在棋盘内，且为空
-	{
-		Board[x][y] = EMPTY;
-		return 0;
 	}
-	else
-		return -1;
-}
+};
 
-int Gobang::getBoard(int x, int y)
-{
-	return Board[x][y];
-}
-
-int Gobang::setBack()
-{
-	if (!sx.empty() && !sy.empty())
-	{
-		int x = sx.top(); sx.pop();
-		int y = sy.top(); sy.pop();
-		Gobang::setEmpty(x, y);
-		return 0;
-	}
-	return -1;
-}
 #endif
