@@ -10,9 +10,10 @@
 #include <iomanip>
 using namespace std;
 
-#define EMPTY  -100 //空子
-#define BLACK  -101 //黑子
-#define WHITE  -102 //白子
+#define EMPTY  0 //空子
+#define BLACK  1 //黑子
+#define WHITE  2 //白子
+#define INIFITY 100000
 #define random(a,b) (rand()%(b-a+1)+a) //取值范围为[a,b]的随机数
 #define E 4
 #define F 5
@@ -29,8 +30,11 @@ typedef struct Point {
 	int x;
 	int y;
 };
+static int MAN, COM;
 static int Board[15][15]; //棋盘
 static int points; //打点数
+static stack <int> sx; //记录下棋步骤
+static stack <int> sy; //记录下棋步骤
 static Point steps[5]; //棋子位置记录
 static int Direct[4][2] = { { 1,-1 },{ 1,0 },{ 1,1 },{ 0,1 } };
 
@@ -49,14 +53,11 @@ static Point Lib1[8][5] = {
 { 7,G,10,F,6,F,10,J,6,J },
 { 7,I,10,F,6,F,10,J,6,J },
 { 9,H,6,F,6,J },{ 8,G,10,J,6,J },
-{ 8,I,10,F,6,F },{ 7,H,10,F,10,J },
+{ 8,I,10,F,6,F },{ 7,H,10,F,10,J }, 
 };
 
 class Gobang
 {
-private:
-	stack <int> sx; //记录下棋步骤
-	stack <int> sy; //记录下棋步骤
 public:
 	Gobang()
 	{
