@@ -18,9 +18,7 @@ public:
 	int minmaxSearch(int depth, int &tx, int &ty);
 	int MaxSearch(int depth, int tx, int ty);
 	int MinSearch(int depth, int tx, int ty);
-	/*int minmanxSearch(int depth);
-	int MaxSearch(int depth);
-	int MinSearch(int depth);*/
+	int Alphabeta(int &tx, int &ty,int depth, int a, int b,int player);
 };
 
 //指定开局
@@ -394,7 +392,7 @@ int Gobang_Rules::minmaxSearch(int depth, int &tx, int &ty)
 {
     int bestMoveX, bestMoveY;
 	int x, y;
-	int bestValue = -INIFITY;
+	int bestValue = -INFINITY;
 	if (depth == 0)
 	    return Eval(tx, ty);
 	else
@@ -410,7 +408,7 @@ int Gobang_Rules::minmaxSearch(int depth, int &tx, int &ty)
 				{
 
 					Gobang::setBoard(x, y, COM); 
-					if (Eval(x, y) >= +INIFITY)
+					if (Eval(x, y) >= +INFINITY)
 					{
 						tx = x;
 						ty = y;
@@ -438,9 +436,10 @@ int Gobang_Rules::minmaxSearch(int depth, int &tx, int &ty)
 	tx = bestMoveX;
 	ty = bestMoveY;
 }
+
 int Gobang_Rules::MaxSearch(int depth, int tx, int ty)
 {
-	int bestValue = -INIFITY, x, y;
+	int bestValue = -INFINITY, x, y;
 	if (depth == 0)
 	{
 		int L = Eval(tx, ty);
@@ -474,7 +473,7 @@ int Gobang_Rules::MaxSearch(int depth, int tx, int ty)
 
 int Gobang_Rules::MinSearch(int depth, int tx, int ty)
 {  
-	int bestValue = INIFITY, x, y;
+	int bestValue = INFINITY, x, y;
 	if (depth == 0)
 	{
 		int L = Eval(tx, ty);
@@ -504,6 +503,55 @@ int Gobang_Rules::MinSearch(int depth, int tx, int ty)
 	}
 	//cout << "                           MIN   " << bestValue << endl;
 	return bestValue;
+}
+
+int Gobang_Rules::Alphabeta(int &tx, int &ty,int depth, int a, int b,int player)
+{
+	int x, y, value;
+	if (depth == 0)
+		return Eval(tx, ty);
+	if (player == COM)
+	{
+		for (x = 0; x < 15; x++)
+		{
+			for (y = 0; y < 15; y++)
+			{
+				if (Gobang::getBoard(x, y) == EMPTY)
+				{
+					Gobang::setBoard(x, y, COM);
+					value = Alphabeta(x, y, depth - 1, a, b, MAN);
+					if (value > a)
+					{
+						a = value;
+						tx = x;
+						ty = y;
+					}
+					Gobang::setEmpty(x, y);
+					if (b <= a)
+						break; 
+				}	
+			}
+		}
+		return a;
+	}
+	else if (player == MAN)
+	{
+		for (x = 0; x < 15; x++)
+		{
+			for (y = 0; y < 15; y++)
+			{
+				if (Gobang::getBoard(x, y) == EMPTY)
+				{
+					Gobang::setBoard(x, y, MAN);
+					b = Min(b, Alphabeta(x, y, depth - 1, a, b, COM));
+					Gobang::setEmpty(x, y);
+					if (b <= a)
+						break;				
+				}	
+			}
+		}
+		return b;
+	}
 }
 
 #endif
