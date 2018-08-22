@@ -12,4 +12,3 @@ int main()
 	Go.FifthStep();
 	Go.Continue();
 }
-
