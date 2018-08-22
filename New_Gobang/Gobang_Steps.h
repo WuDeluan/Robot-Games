@@ -4,12 +4,12 @@
 #include "Gobang_Rules.h"
  
 class Gobang_Steps : public Gobang_Rules, public Gobang {
-private:
-	int MAN, COM;
 public:
 	void Opening(); //指定开局
 	void ForthStep(); //三手交换选择
 	void FifthStep(); //打点选择
+	void Continue();
+	void Print_Menu1();
 };
 
 //指定开局
@@ -40,7 +40,7 @@ void Gobang_Steps::Opening()
 		while (true)
 		{
 			cout << "白2："; cin >> x; cin >> y;
-			if (x >= 7 && x <= 9 && y >= 'G' && y <= 'I'){ //位置正确性判断
+			if (x >= 7 && x <= 9 && y >= 'G' && y <= 'I' && Board[15 - x][y - 'A'] == EMPTY){ //位置正确性判断
 				Gobang::setBoard(15 - x, y - 'A', WHITE);
 				Gobang::Print_Checkerboard();
 				steps[0].x = 15 - x; steps[0].y = y - 'A'; //记录白2棋子坐标
@@ -53,7 +53,7 @@ void Gobang_Steps::Opening()
 		while (true)
 		{
 			cout << "黑3: "; cin >> x; cin >> y;
-			if (x >= 6 && x <= 10 && y >= 'F' && y <= 'J') //位置正确性判断
+			if (x >= 6 && x <= 10 && y >= 'F' && y <= 'J' && Board[15 - x][y - 'A'] == EMPTY) //位置正确性判断
 			{
 				Gobang::setBoard(15 - x, y - 'A', BLACK);
 				Gobang::Print_Checkerboard();
@@ -66,6 +66,7 @@ void Gobang_Steps::Opening()
 	}
 	else if (m == 2) //电脑先手
 	{
+		srand((unsigned)time(NULL));
 		points = random(1, 3);
 		MAN = WHITE; COM = WHITE;  //确定双方执棋颜色
 		cout << "黑方给出的打点数为：" << points << endl;
@@ -98,7 +99,7 @@ void Gobang_Steps::ForthStep()
 		while (true)
 		{
 			cout << "请输入白4坐标："; cin >> x; cin >> y;
-			if (x >= 6 && x <= 10 && y >= 'F' && y <= 'J') { //坐标正确性判断
+			if (x >= 6 && x <= 10 && y >= 'F' && y <= 'J' && Board[15 - x][y - 'A'] == EMPTY) { //坐标正确性判断
 				Gobang::setBoard(15 - x, y - 'A', WHITE);
 				Gobang::Print_Checkerboard();
 				break;
@@ -123,7 +124,7 @@ void Gobang_Steps::FifthStep()
 			while (true)
 			{
 				cout << "第 " << i + 1 << " 个坐标: "; cin >> x; cin >> y;
-				if (x >= 0 && x <= 14 && y >= 'A' && y <= 'O') //位置正确性判断 
+				if (x >= 0 && x <= 14 && y >= 'A' && y <= 'O' && Board[15 - x][y - 'A'] == EMPTY) //位置正确性判断 
 				{
 					Gobang::setBoard(15 - x, y - 'A', BLACK); 
 					Gobang::Print_Checkerboard(); //打印打点后的棋盘
@@ -139,8 +140,10 @@ void Gobang_Steps::FifthStep()
 		for (i = 0; i < points; i++) //清空打点的棋子
 			Gobang::setBack(); 
 		Gobang_Rules::SaveOnePoint(x, z); //给出黑5坐标
-		cout << "电脑选择的坐标是：(" << 15 - x << " , " << (char)(z + 'A') << ")" << endl;
+		(COM == BLACK) ? cout << "（黑方）" : cout << "（白方）";
+		cout << "选择的坐标是：(" << 15 - x << " , " << (char)(z + 'A') << ")" << endl;
 		Gobang::setBoard(x, z,BLACK); //落子
+		steps[2].x = x; steps[2].y = z; //记录黑5棋子坐标
 		Gobang::Print_Checkerboard(); //打印当前棋盘
 	}
 	//电脑为黑方
@@ -150,8 +153,7 @@ void Gobang_Steps::FifthStep()
 		for (i = 0; i < points; i++) 
 		{
 			BlackFive(x,z);
-			steps[i + 2].x = x; steps[i + 2].y = z; //记录黑5棋子坐标
-			cout << "第 " << i + 1 << " 个棋子: " << x << " " << z << endl;
+			cout << "第 " << i + 1 << " 个棋子: " <<  "(" << 15 - x << " , " << char(z + 'A') << ")" << endl;
 		}
 		Gobang::Print_Checkerboard(); //打印打点后的棋盘
 		//人选择一个棋子作黑5
@@ -159,17 +161,114 @@ void Gobang_Steps::FifthStep()
 		{
 			cout << "请选择要保留的棋子坐标："; cin >> x; cin >> y;
 			if (x >= 0 && x <= 14 && y >= 'A' && y <= 'O') //位置正确性判断 
-			{
-				Gobang::Print_Checkerboard(); //打印打点后的棋盘
-				break;
-			}		
+				break;	
 			else
 				cout << "请输入正确的位置坐标！" << endl;
 		}
 		for (i = 0; i < points; i++) //清空打点的棋子
 			Gobang::setBack();
 		Gobang::setBoard(15 - x, y - 'A', BLACK); //落子
+		steps[2].x = 15 - x; steps[2].y = y - 'A'; //记录黑5棋子坐标
 		Gobang::Print_Checkerboard(); //打印当前棋盘
 	}
 }
+
+void Gobang_Steps::Continue()
+{
+	int x, y,tx, ty;
+	char z;
+	if (COM == WHITE)
+	{
+		tx = steps[2].x;
+		ty = steps[2].y;
+		if (PreJudge(tx, ty) == 0)
+			//minmaxSearch(3, tx, ty);
+			Alphabeta(tx, ty, 3, -INFINITY, +INFINITY, COM);
+		cout << "（白方）落子：" << "(" << 15 - tx << " , " << char(ty + 'A') << ")" << endl;
+		Gobang::setBoard(tx, ty, COM);
+		Gobang::Print_Checkerboard();
+	}
+
+	while (1)
+	{
+		while (true) {
+			//人
+			(MAN == BLACK) ? cout << "（黑方）请落子：" : cout << "（白方）请落子：";
+			cin >> x; cin >> z;
+			x = 15 - x;
+			y = z - 'A';
+			if (Gobang::setBoard(x, y, MAN) == -1)
+				cout << "请选择正确的位置落子！" << endl;
+			else
+				break;
+		}
+		Gobang::Print_Checkerboard();
+		if (IsWin(x, y) == 0)
+		{
+			cout << "恭喜你获胜了!" << endl;
+			break;
+		}
+		//电脑
+		tx = x, ty = y;
+		if (PreJudge(tx, ty) == 0)
+		      //minmaxSearch(3, tx, ty);
+			Alphabeta(tx, ty, 3, -INFINITY, +INFINITY, COM);
+ 		Gobang::setBoard(tx, ty, COM);
+		(COM == BLACK) ? cout << "（黑方）落子：" : cout << "（白方）落子：";
+		cout << "(" << 15 - tx << " , " << char(ty + 'A') << ")" << endl;
+		Gobang::Print_Checkerboard();
+		if (IsWin(tx, ty) == 0)
+		{
+			cout << "很遗憾你输了!" << endl;
+			break;
+		}
+	}
+}
+
+void Gobang_Steps::Print_Menu1()
+{
+	int x;
+	char y;
+	int tx, ty;
+	Gobang::Print_Checkerboard();
+	while (1)
+	{
+		while (true) {
+			cout << "请黑方落子：";
+			cin >> x; cin >> y;
+			if (Gobang::setBoard(15 - x, y - 'A', BLACK) == -1)
+				cout << "请选择正确的位置落子！" << endl;
+			else
+				break;
+		}
+		Gobang::Print_Checkerboard();
+		if (IsWin(15 - x, y - 'A') == 0)
+			cout << "黑方获胜!" << endl;
+		tx = 15 - x; ty = y - 'A';
+		if (PreJudge(tx, ty) != 0)
+		{
+			Gobang::setBoard(tx, ty, WHITE); 
+			Gobang::Print_Checkerboard();
+		}
+			
+		while (true) {
+			cout << "请白方落子：";
+			cin >> x;cin >> y;
+			if (Gobang::setBoard(15 - x, y - 'A', WHITE) == -1)
+				cout << "请选择正确的位置落子！" << endl;
+			else
+				break;
+		}
+		Gobang::Print_Checkerboard();
+		if (IsWin(15 - x, y - 'A') == 0)
+			cout << "白方获胜!" << endl;
+		tx = 15 - x; ty = y - 'A';
+		if (PreJudge(tx, ty) != 0)
+		{
+			Gobang::setBoard(tx, ty, BLACK);
+			Gobang::Print_Checkerboard();
+		}
+	}
+}
+
 #endif 
