@@ -2,7 +2,7 @@
 #include "Gobang_Rules.h"
 #include "Gobang_Steps.h"
 
-int main()
+/*int main()
 {
 	Gobang_Steps Go = Gobang_Steps();
 	//Go.Print_Menu1();
@@ -11,4 +11,5 @@ int main()
 	Go.ForthStep();
 	Go.FifthStep();
 	Go.Continue();
-}
+}*/
+
