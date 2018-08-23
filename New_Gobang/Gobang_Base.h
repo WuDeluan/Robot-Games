@@ -22,6 +22,17 @@ using namespace std;
 #define I 8
 #define J 9 
 #define K 10
+#define FIVE 0  //五连
+#define FOUR 1  //活四
+#define FFOUR 2  //冲四
+#define DFOUR 3  //死四
+#define THREE 4  //活三
+#define STHREE 5 //眠三
+#define DTHREE 6  //死三
+#define TWO 7  //活二
+#define STWO 8 //眠二
+#define ANALSISED   255//已分析过的
+#define TOBEANALSIS -1  //待分析的
 
 struct Step {
 	int x, y, color;
@@ -36,7 +47,9 @@ static int points; //打点数
 static stack <int> sx; //记录下棋步骤
 static stack <int> sy; //记录下棋步骤
 static Point steps[5]; //棋子位置记录
-static int Direct[4][2] = { { 1,-1 },{ 1,0 },{ 1,1 },{ 0,1 } };
+static int TypeRecord[15][15][4];  //记录全部棋子在四个方向上的分析结果
+static int TypeCount[2][15];  //记录分析结果的统计值   
+static int Direct[4][2] = { { 1,-1 },{ 1,0 },{ 1,1 },{ 0,1 } };  //四个方向上x,y分别进行的移动值
 
 //26这种开局的黑3位置坐标，前13个为直指开局，后13个为斜指开局
 static Point Lib[26] = {
@@ -56,7 +69,7 @@ static Point Lib1[8][5] = {
 { 8,I,10,F,6,F },{ 7,H,10,F,10,J }, 
 };
 
-static int Position[15][15] = {
+static int PosValue[15][15] = {
 { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 { 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },
 { 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0 },
@@ -102,7 +115,7 @@ public:
 				if (Board[i][j] == BLACK) //打印黑子
 					cout << "●";
 				else if (Board[i][j] == WHITE) //打印白子
-					cout << "";
+					cout << "○";
 				else
 				{
 					if (i == 0)
