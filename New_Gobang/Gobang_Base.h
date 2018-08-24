@@ -48,7 +48,7 @@ static stack <int> sx; //记录下棋步骤
 static stack <int> sy; //记录下棋步骤
 static Point steps[5]; //棋子位置记录
 static int TypeRecord[15][15][4];  //记录全部棋子在四个方向上的分析结果
-static int TypeCount[2][15];  //记录分析结果的统计值   
+static int TypeCount[3][15];  //记录分析结果的统计值   
 static int Direct[4][2] = { { 1,-1 },{ 1,0 },{ 1,1 },{ 0,1 } };  //四个方向上x,y分别进行的移动值
 
 //26这种开局的黑3位置坐标，前13个为直指开局，后13个为斜指开局
