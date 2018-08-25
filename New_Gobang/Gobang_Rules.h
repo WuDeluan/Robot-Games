@@ -15,13 +15,15 @@ public:
 	int PreJudge_IsFour(int &x, int &y); //预判是否出现必须防守的情况
 	int PreJudge_IsFive(int &x, int &y); //预判是否有连子的可能
 	int PreJudge(int &x, int &y);  //搜索前的预判
-	int IsLegal(int x, int y); //是否存在禁手
+	int IsLegal(int x, int y); //是否存在禁手 
 	int Evaluate(); //估值函数，对某一局面的估值
 	void Analysis(int x, int y);  //对某一点的估值判断
 	int minmaxSearch(int depth, int &tx, int &ty);
 	int MaxSearch(int depth, int tx, int ty);
 	int MinSearch(int depth, int tx, int ty);
 	int Alphabeta(int &tx, int &ty, int depth, int a, int b, int player);
+	U64 rand64(); //生成64位校验码
+	void InitializeHashKey(); //初始化键码
 };
 
 //指定开局
@@ -370,7 +372,7 @@ int Gobang_Rules::IsLegal(int x, int y)
 			if (side1.compare(0, 2, "##") == 0 && side2.compare(0, 2, "##") == 0)
 				three++;
 		}
-		else if (len == 2) 
+		else if (len == 2)
 		{
 			if (side1.compare(0, 3, "#00") == 0)
 				four++;
@@ -499,6 +501,7 @@ int Gobang_Rules::Evaluate()
 
 	//加上所有棋子的位置价值
 	for (x = 0; x < 15; x++)
+	{
 		for (y = 0; y < 15; y++)
 		{
 			Side = Gobang::getBoard(x, y);
@@ -508,6 +511,7 @@ int Gobang_Rules::Evaluate()
 				else
 					MValue += PosValue[x][y];
 		}
+	}
 
 	//返回估值
 	return CValue - MValue;
@@ -686,7 +690,7 @@ int Gobang_Rules::minmaxSearch(int depth, int &tx, int &ty)
 							bestMoveX = x;
 							bestMoveY = y;
 						}
-					}			
+					}
 					Gobang::setEmpty(x, y); //恢复棋面
 				}
 			}
@@ -784,16 +788,16 @@ int Gobang_Rules::Alphabeta(int &tx, int &ty, int depth, int a, int b, int playe
 				if (Gobang::getBoard(x, y) == EMPTY)
 				{
 					Gobang::setBoard(x, y, COM);
-					value = Alphabeta(x, y, depth - 1, a, b, MAN);
+					value = Alphabeta(tx, ty, depth - 1, a, b, MAN);
 					Gobang::setEmpty(x, y);
 					if (value > a)
 					{
 						a = value;
 						tx = x;
 						ty = y;
-					}					
-					if (b <= a)
-						break;
+					}
+					if (a >= b)
+						return a;
 				}
 			}
 		}
@@ -808,15 +812,37 @@ int Gobang_Rules::Alphabeta(int &tx, int &ty, int depth, int a, int b, int playe
 				if (Gobang::getBoard(x, y) == EMPTY)
 				{
 					Gobang::setBoard(x, y, MAN);
-					b = Min(b, Alphabeta(x, y, depth - 1, a, b, COM));
+					value = Alphabeta(tx, ty, depth - 1, a, b, COM);
 					Gobang::setEmpty(x, y);
+					if (value < b)
+						b = value;
 					if (b <= a)
-						break;
+						return b;
 				}
 			}
 		}
 		return b;
 	}
+}
+
+U64 Gobang_Rules::rand64()
+{
+	return rand() ^ ((U64)rand() << 15) ^ ((U64)rand() << 30) ^ ((U64)rand() << 45) ^ ((U64)rand() << 60);
+}
+
+void Gobang_Rules::InitializeHashKey()
+{
+	int i, j, k;
+	srand((unsigned)time(NULL));
+	//填充随机数组
+	for (i = 0; i < 2; i++)
+		for (j = 0; j < 15; j++)
+			for (k = 0; k < 15; k++)
+				zobrist[i][j][k] = rand64();
+
+	//申请置换表所用空间。1M "2 个条目，读者也可指定其他大小
+	m_pTT[0] = new HashItem[1024 * 1024];//用于存放取极大值的节点数据
+	m_pTT[1] = new HashItem[1024 * 1024];//用于存放取极小值的节点数据
 }
 
 #endif
