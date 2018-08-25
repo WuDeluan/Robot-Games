@@ -181,9 +181,9 @@ void Gobang_Steps::Continue()
 	{
 		tx = steps[2].x;
 		ty = steps[2].y;
-		//if (PreJudge(tx, ty) == 0)
+		if (PreJudge(tx, ty) == 0)
 			//minmaxSearch(2, tx, ty);
-		Alphabeta(tx, ty, 3, -INFINITY, +INFINITY, COM);
+		    Alphabeta(tx, ty, 3, -INFINITY, +INFINITY, COM);
 		cout << "（白方）落子：" << "(" << 15 - tx << " , " << char(ty + 'A') << ")" << endl;
 		Gobang::setBoard(tx, ty, COM);
 		Gobang::Print_Checkerboard();
@@ -211,7 +211,7 @@ void Gobang_Steps::Continue()
 		//电脑
 		tx = x, ty = y;
 		if (PreJudge(tx, ty) == 0)
-			// minmaxSearch(2, tx, ty);
+			 //minmaxSearch(3, tx, ty);
 			Alphabeta(tx, ty, 3, -INFINITY, +INFINITY, COM);
 		Gobang::setBoard(tx, ty, COM);
 		(COM == BLACK) ? cout << "（黑方）落子：" : cout << "（白方）落子：";
