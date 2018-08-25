@@ -34,6 +34,10 @@ using namespace std;
 #define ANALSISED   255//已分析过的
 #define TOBEANALSIS -1  //待分析的
 
+typedef __int64 U64;
+//定义了枚举型的数据类型，精确，下边界，上边界
+enum FLAG_TYPE { EXACT, ALPHA, BETA};
+
 struct Step {
 	int x, y, color;
 };
@@ -41,6 +45,16 @@ typedef struct Point {
 	int x;
 	int y;
 };
+
+//哈希表中元素的结构定义
+typedef struct tagHASHE {
+	U64 key;  //64位校验码
+	int depth;  //深度
+	int flags;  //数据类型标记（hashfEXACT, hashfALPHA, hashfBETA）
+	int value;  //估值
+	Point best;  //有利落子点
+} HASHE;
+
 static int MAN, COM;
 static int Board[15][15]; //棋盘
 static int points; //打点数
@@ -49,6 +63,7 @@ static stack <int> sy; //记录下棋步骤
 static Point steps[5]; //棋子位置记录
 static int TypeRecord[15][15][4];  //记录全部棋子在四个方向上的分析结果
 static int TypeCount[3][15];  //记录分析结果的统计值   
+static U64 zobrist[2][15][15]; //记录某一局面的键值
 static int Direct[4][2] = { { 1,-1 },{ 1,0 },{ 1,1 },{ 0,1 } };  //四个方向上x,y分别进行的移动值
 
 //26这种开局的黑3位置坐标，前13个为直指开局，后13个为斜指开局
@@ -189,22 +204,6 @@ public:
 			return 0;
 		}
 		return -1;
-	}
-
-	int Max(int a, int b)
-	{
-		if (a >= b)
-			return a;
-		else
-			return b;
-	}
-
-	int Min(int a, int b)
-	{
-		if (a <= b)
-			return a;
-		else
-			return b;
 	}
 };
 
