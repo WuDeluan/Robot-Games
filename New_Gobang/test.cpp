@@ -8,6 +8,7 @@ int main()
 	char y;
 	Gobang_Steps Go = Gobang_Steps();
 
+
 	/*
 	//minmaxSearch()测试
 
@@ -54,7 +55,7 @@ int main()
 		cout << "illegal" << endl;*/
 	
 	
-	//ab剪枝算法测试
+	//各搜索算法测试
 	MAN = WHITE;
 	COM = BLACK;
 	Go.Gobang::setBoard(7, H, BLACK);
@@ -62,14 +63,13 @@ int main()
 	Go.Gobang::setBoard(5, G, BLACK);
 	Go.Gobang::setBoard(6, E, WHITE);
 	Go.Gobang::setBoard(6, F, WHITE);
-	Go.Gobang::setBoard(6, G, WHITE);
+	Go.Gobang::setBoard(6, G, WHITE); 
 	//Go.Gobang::setBoard(0, 0, WHITE);
 	//Go.Gobang::setBoard(6, H, BLACK);
 	Go.Gobang::Print_Checkerboard();
-	Go.Alphabeta(tx, ty, 2, -INFINITY, +INFINITY, COM);//缩小搜索范围从1-11，耗时一个半
+	Go.NegaScoutSearch(tx, ty, 3, -INFINITY, +INFINITY, COM);//缩小搜索范围从1-11，耗时一个半
 	Go.Gobang::setBoard(tx, ty, COM);
 	Go.Gobang::Print_Checkerboard();
-	cin >> tx;
 
 	Go.Gobang::Print_Checkerboard();
 	Go.Opening();
