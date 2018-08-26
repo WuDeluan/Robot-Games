@@ -16,14 +16,18 @@ public:
 	int PreJudge_IsFive(int &x, int &y); //预判是否有连子的可能
 	int PreJudge(int &x, int &y);  //搜索前的预判
 	int IsLegal(int x, int y); //是否存在禁手 
-	int Evaluate(); //估值函数，对某一局面的估值
+	int Evaluate(int palyer); //估值函数，对某一局面的估值
 	void Analysis(int x, int y);  //对某一点的估值判断
-	int minmaxSearch(int depth, int &tx, int &ty);
-	int MaxSearch(int depth, int tx, int ty);
-	int MinSearch(int depth, int tx, int ty);
-	int Alphabeta(int &tx, int &ty, int depth, int a, int b, int player);
-	U64 rand64(); //生成64位校验码
-	void InitializeHashKey(); //初始化键码
+	int minmaxSearch(int depth, int &tx, int &ty);  //极大极小值搜索算法
+	int MaxSearch(int depth, int tx, int ty); //极大值搜索算法
+	int MinSearch(int depth, int tx, int ty); //极小值搜索算法
+	int Alphabeta(int &tx, int &ty, int depth, int alpha, int beta, int player);  //αβ剪枝算法
+	int NegaScoutSearch(int &tx, int &ty, int depth, int alpha, int beta, int player);  //负极值搜索
+	U64 rand64(); //随机生成64位校验码
+	void InitializeHashKey(); //初始化检验码
+	int ProbeHash(int depth, int alpha, int beta, Point &bestMove); //检验置换表中元素
+	void RecordHash(int depth, int val, int hashf, Point bestMove); //添加元素到置换表中
+	int NegaScout_hash(int &tx, int &ty, int depth, int alpha, int beta, int player);  //负极值搜索
 };
 
 //指定开局
@@ -108,34 +112,6 @@ void Gobang_Rules::SaveOnePoint(int &x, int &y)
 	//暂定为第一个打点坐标
 	x = steps[2].x;
 	y = steps[2].y;
-}
-
-//判断某一方是否连成五子
-int Gobang_Rules::IsWin(int x, int y)
-{
-	int i, tx, ty, len;
-	int Side = getBoard(x, y);//取得落子颜色
-	for (i = 0; i < 4; i++)//4个方向的循环
-	{
-		tx = x; ty = y;//设置观察起点
-		len = 0;//设置计数器
-		while (tx >= 0 && tx < 15 && ty >= 0 && ty < 15 && getBoard(tx, ty) == Side)//连珠条件
-		{
-			tx -= Direct[i][0];//沿一个方向
-			ty -= Direct[i][1];//移动观察点
-		}
-		tx += Direct[i][0];
-		ty += Direct[i][1];
-		while (tx >= 0 && tx < 15 && ty >= 0 && ty < 15 && getBoard(tx, ty) == Side)//连珠条件
-		{
-			len++;//计数
-			tx += Direct[i][0];//沿相反方向
-			ty += Direct[i][1];//移动观察点
-		}
-		if (len >= 5)//比较连珠数目
-			return 0;//获胜
-	}
-	return -1;//为获胜
 }
 
 //预判是否出现必须防守的情况
@@ -393,7 +369,7 @@ int Gobang_Rules::IsLegal(int x, int y)
 }
 
 //估值函数，对某一局面的估值
-int Gobang_Rules::Evaluate()
+int Gobang_Rules::Evaluate(int player)
 {
 	int x, y, k;
 	int Side;
@@ -441,10 +417,20 @@ int Gobang_Rules::Evaluate()
 	}
 
 	//如果已五连,返回极值
-	if (TypeCount[COM][FIVE])
-		return 9999;
-	else if (TypeCount[MAN][FIVE])
-		return -9999;
+	if (player == WHITE)
+	{
+		if (TypeCount[BLACK][FIVE])
+			return -9999;
+		if (TypeCount[WHITE][FIVE])
+			return 9999;
+	}
+	else
+	{
+		if (TypeCount[BLACK][FIVE])
+			return 9999;
+		if (TypeCount[WHITE][FIVE])
+			return -9999;
+	}
 
 	//两个冲四等于一个活四
 	if (TypeCount[COM][FFOUR] > 1)
@@ -452,52 +438,104 @@ int Gobang_Rules::Evaluate()
 	if (TypeCount[MAN][FFOUR] > 1)
 		TypeCount[MAN][FOUR]++;
 
-	int CValue = 0, MValue = 0;
+	int WValue = 0, BValue = 0;
 
-	if (TypeCount[COM][FOUR])
-		return 9990;//活四,白胜返回极值
-	if (TypeCount[COM][FFOUR])
-		return 9980;//冲四,白胜返回极值
-	if (TypeCount[MAN][FOUR])
-		return -9970;//白无冲四活四,而黑有活四,黑胜返回极值
-	if (TypeCount[MAN][FFOUR] && TypeCount[MAN][THREE])
-		return -9960;//而黑有冲四和活三,黑胜返回极值
-	if (TypeCount[COM][THREE] && TypeCount[MAN][FFOUR] == 0)
-		return 9950;//白有活三而黑没有四,白胜返回极值
-	if (TypeCount[MAN][THREE] > 1 && TypeCount[WHITE][FFOUR] == 0 && TypeCount[COM][THREE] == 0 && TypeCount[COM][STHREE] == 0)
-		return -9940;//黑的活三多于一个,而白无四和三,黑胜返回极值
-	if (TypeCount[COM][THREE] > 1)
-		CValue += 2000;//白活三多于一个,白棋价值加2000
-	else //否则白棋价值加200
+	if (player == WHITE)//轮到白棋走
 	{
-		if (TypeCount[COM][THREE])
-			CValue += 200;
+		if (TypeCount[WHITE][FOUR])
+			return 9990;//活四,白胜返回极值
+		if (TypeCount[WHITE][FFOUR])
+			return 9980;//冲四,白胜返回极值
+		if (TypeCount[BLACK][FOUR])
+			return -9970;//白无冲四活四,而黑有活四,黑胜返回极值
+		if (TypeCount[BLACK][FFOUR] && TypeCount[BLACK][THREE])
+			return -9960;//而黑有冲四和活三,黑胜返回极值
+		if (TypeCount[WHITE][THREE] && TypeCount[BLACK][FFOUR] == 0)
+			return 9950;//白有活三而黑没有四,白胜返回极值
+		if (TypeCount[BLACK][THREE] > 1 && TypeCount[WHITE][FFOUR] == 0 && TypeCount[WHITE][THREE] == 0 && TypeCount[WHITE][STHREE] == 0)
+			return -9940;//黑的活三多于一个,而白无四和三,黑胜返回极值
+		if (TypeCount[WHITE][THREE] > 1)
+			WValue += 2000;//白活三多于一个,白棋价值加2000
+		else
+			//否则白棋价值加200
+			if (TypeCount[WHITE][THREE])
+				WValue += 200;
+		if (TypeCount[BLACK][THREE] > 1)
+			BValue += 500;//黑的活三多于一个,黑棋价值加500
+		else
+			//否则黑棋价值加100
+			if (TypeCount[BLACK][THREE])
+				BValue += 100;
+		//每个眠三加10
+		if (TypeCount[WHITE][STHREE])
+			WValue += TypeCount[WHITE][STHREE] * 10;
+		//每个眠三加10
+		if (TypeCount[BLACK][STHREE])
+			BValue += TypeCount[BLACK][STHREE] * 10;
+		//每个活二加4
+		if (TypeCount[WHITE][TWO])
+			WValue += TypeCount[WHITE][TWO] * 4;
+		//每个活二加4
+		if (TypeCount[BLACK][STWO])
+			BValue += TypeCount[BLACK][TWO] * 4;
+		//每个眠二加1
+		if (TypeCount[WHITE][STWO])
+			WValue += TypeCount[WHITE][STWO];
+		//每个眠二加1
+		if (TypeCount[BLACK][STWO])
+			BValue += TypeCount[BLACK][STWO];
 	}
-	if (TypeCount[MAN][THREE] > 1)
-		MValue += 500;//黑的活三多于一个,黑棋价值加500
-	else //否则黑棋价值加100
+	else//轮到黑棋走
 	{
-		if (TypeCount[MAN][THREE])
-			MValue += 100;
+		if (TypeCount[BLACK][FOUR])
+			return 9990;//活四,黑胜返回极值
+		if (TypeCount[BLACK][FFOUR])
+			return 9980;//冲四,黑胜返回极值
+		if (TypeCount[WHITE][FOUR])
+			return -9970;//活四,白胜返回极值
+		if (TypeCount[WHITE][FFOUR] && TypeCount[WHITE][THREE])
+			return -9960;//冲四并活三,白胜返回极值
+		if (TypeCount[BLACK][THREE] && TypeCount[WHITE][FFOUR] == 0)
+			return 9950;//黑活三,白无四。黑胜返回极值
+		if (TypeCount[WHITE][THREE] > 1 && TypeCount[BLACK][FFOUR] == 0 && TypeCount[BLACK][THREE] == 0 && TypeCount[BLACK][STHREE] == 0)
+			return -9940;//白的活三多于一个,而黑无四和三,白胜返回极值
+			//黑的活三多于一个,黑棋价值加2000
+		if (TypeCount[BLACK][THREE] > 1)
+			BValue += 2000;
+		else
+			//否则黑棋价值加200
+			if (TypeCount[BLACK][THREE])
+				BValue += 200;
+
+		//白的活三多于一个,白棋价值加 500
+		if (TypeCount[WHITE][THREE] > 1)
+			WValue += 500;
+		else
+			//否则白棋价值加100
+			if (TypeCount[WHITE][THREE])
+				WValue += 100;
+
+		//每个眠三加10
+		if (TypeCount[WHITE][STHREE])
+			WValue += TypeCount[WHITE][STHREE] * 10;
+		//每个眠三加10
+		if (TypeCount[BLACK][STHREE])
+			BValue += TypeCount[BLACK][STHREE] * 10;
+
+		//每个活二加4
+		if (TypeCount[WHITE][TWO])
+			WValue += TypeCount[WHITE][TWO] * 4;
+		//每个活二加4
+		if (TypeCount[BLACK][STWO])
+			BValue += TypeCount[BLACK][TWO] * 4;
+
+		//每个眠二加1
+		if (TypeCount[WHITE][STWO])
+			WValue += TypeCount[WHITE][STWO];
+		//每个眠二加1
+		if (TypeCount[BLACK][STWO])
+			BValue += TypeCount[BLACK][STWO];
 	}
-	//每个眠三加10
-	if (TypeCount[COM][STHREE])
-		CValue += TypeCount[COM][STHREE] * 10;
-	//每个眠三加10
-	if (TypeCount[MAN][STHREE])
-		MValue += TypeCount[MAN][STHREE] * 10;
-	//每个活二加4
-	if (TypeCount[COM][TWO])
-		CValue += TypeCount[COM][TWO] * 4;
-	//每个活二加4
-	if (TypeCount[MAN][STWO])
-		MValue += TypeCount[MAN][TWO] * 4;
-	//每个眠二加1
-	if (TypeCount[COM][STWO])
-		CValue += TypeCount[COM][STWO];
-	//每个眠二加1
-	if (TypeCount[MAN][STWO])
-		MValue += TypeCount[MAN][STWO];
 
 	//加上所有棋子的位置价值
 	for (x = 0; x < 15; x++)
@@ -506,15 +544,18 @@ int Gobang_Rules::Evaluate()
 		{
 			Side = Gobang::getBoard(x, y);
 			if (Side != EMPTY)
-				if (Side == COM)
-					CValue += PosValue[x][y];
+				if (Side == BLACK)
+					BValue += PosValue[x][y];
 				else
-					MValue += PosValue[x][y];
+					WValue += PosValue[x][y];
 		}
 	}
 
 	//返回估值
-	return CValue - MValue;
+	if (player == WHITE)
+		return WValue - BValue;
+	else
+		return BValue - WValue;	
 }
 
 //对某一点的估值判断
@@ -655,13 +696,14 @@ void Gobang_Rules::Analysis(int x, int y)
 	}
 }
 
+//极大极小值搜索算法
 int Gobang_Rules::minmaxSearch(int depth, int &tx, int &ty)
 {
 	int bestMoveX, bestMoveY;
 	int x, y;
 	int bestValue = -INFINITY;
 	if (depth == 0)
-		return Evaluate();
+		return Evaluate(COM);
 	else
 	{
 		//for (x = tx - 4; x <= tx + 4; x++)
@@ -700,12 +742,13 @@ int Gobang_Rules::minmaxSearch(int depth, int &tx, int &ty)
 	ty = bestMoveY;
 }
 
+//极大值搜索算法
 int Gobang_Rules::MaxSearch(int depth, int tx, int ty)
 {
 	int bestValue = -INFINITY, x, y;
 	if (depth == 0)
 	{
-		int L = Evaluate();
+		int L = Evaluate(COM);
 		//cout << "max  " << L << endl;
 		return L;
 	}
@@ -737,12 +780,13 @@ int Gobang_Rules::MaxSearch(int depth, int tx, int ty)
 	return bestValue;
 }
 
+//极小值搜索算法
 int Gobang_Rules::MinSearch(int depth, int tx, int ty)
 {
 	int bestValue = INFINITY, x, y;
 	if (depth == 0)
 	{
-		int L = Evaluate();
+		int L = Evaluate(COM);
 		//cout << "min  " << L << endl;
 		return L;
 	}
@@ -774,11 +818,12 @@ int Gobang_Rules::MinSearch(int depth, int tx, int ty)
 	return bestValue;
 }
 
-int Gobang_Rules::Alphabeta(int &tx, int &ty, int depth, int a, int b, int player)
+//αβ剪枝搜索算法
+int Gobang_Rules::Alphabeta(int &tx, int &ty, int depth, int alpha, int beta, int player)
 {
 	int x, y, value;
 	if (depth == 0)
-		return Evaluate();
+		return Evaluate(COM);
 	if (player == COM)
 	{
 		for (x = 0; x < 15; x++)
@@ -788,20 +833,20 @@ int Gobang_Rules::Alphabeta(int &tx, int &ty, int depth, int a, int b, int playe
 				if (Gobang::getBoard(x, y) == EMPTY)
 				{
 					Gobang::setBoard(x, y, COM);
-					value = Alphabeta(tx, ty, depth - 1, a, b, MAN);
+					value = Alphabeta(tx, ty, depth - 1, alpha, beta, MAN);
 					Gobang::setEmpty(x, y);
-					if (value > a)
+					if (value > alpha)
 					{
-						a = value;
+						alpha = value;
 						tx = x;
 						ty = y;
 					}
-					if (a >= b)
-						return a;
+					if (alpha >= beta)
+						return alpha;
 				}
 			}
 		}
-		return a;
+		return alpha;
 	}
 	else if (player == MAN)
 	{
@@ -812,37 +857,133 @@ int Gobang_Rules::Alphabeta(int &tx, int &ty, int depth, int a, int b, int playe
 				if (Gobang::getBoard(x, y) == EMPTY)
 				{
 					Gobang::setBoard(x, y, MAN);
-					value = Alphabeta(tx, ty, depth - 1, a, b, COM);
+					value = Alphabeta(tx, ty, depth - 1, alpha, beta, COM);
 					Gobang::setEmpty(x, y);
-					if (value < b)
-						b = value;
-					if (b <= a)
-						return b;
+					if (value < beta)
+						beta = value;
+					if (beta <= alpha)
+						return beta;
 				}
 			}
 		}
-		return b;
+		return beta;
 	}
 }
 
-U64 Gobang_Rules::rand64()
+//负极值搜索算法
+int Gobang_Rules::NegaScoutSearch(int &tx, int &ty, int depth, int alpha, int beta, int player)
 {
-	return rand() ^ ((U64)rand() << 15) ^ ((U64)rand() << 30) ^ ((U64)rand() << 45) ^ ((U64)rand() << 60);
+	static int max_depth = depth;
+	int x, y, value;
+
+	if (depth == 0)
+		return Evaluate(player);
+	for (x = 0; x < 15; x++)
+	{
+		for (y = 0; y < 15; y++)
+		{
+			if (Gobang::getBoard(x, y) == EMPTY)
+			{
+				Gobang::setBoard(x, y, player);
+				value = -NegaScoutSearch(tx, ty, depth - 1, -beta, -alpha, notplayer(player));
+				Gobang::setEmpty(x, y);
+				if (value >= beta)
+					return beta;
+				if (value > alpha)
+				{
+					alpha = value;
+					if (depth == max_depth)
+					{
+						tx = x;
+						ty = y;
+					}
+				}
+			}
+		}
+	}
+	return alpha;
 }
 
-void Gobang_Rules::InitializeHashKey()
-{
-	int i, j, k;
-	srand((unsigned)time(NULL));
-	//填充随机数组
-	for (i = 0; i < 2; i++)
-		for (j = 0; j < 15; j++)
-			for (k = 0; k < 15; k++)
-				zobrist[i][j][k] = rand64();
-
-	//申请置换表所用空间。1M "2 个条目，读者也可指定其他大小
-	m_pTT[0] = new HashItem[1024 * 1024];//用于存放取极大值的节点数据
-	m_pTT[1] = new HashItem[1024 * 1024];//用于存放取极小值的节点数据
+//校验置换表中的元素
+int Gobang_Rules::ProbeHash(int depth, int alpha, int beta, Point &bestMove) {
+	HASH *phash = &hashTable[ZobristKey & (TableSize - 1)];
+	if (phash->key == ZobristKey) {
+		if (phash->depth >= depth) {
+			if (phash->flags == hash_EXACT) {
+				return phash->value;
+			}
+			if ((phash->flags == hash_ALPHA) && (phash->value <= alpha)) {
+				return alpha;
+			}
+			if ((phash->flags == hash_BETA) && (phash->value >= beta)) {
+				return beta;
+			}
+		}
+		//RememberBestMove
+		bestMove = phash->best;
+	}
+	return valUNKNOWN;
 }
+
+//添加元素到置换表中
+void Gobang_Rules::RecordHash(int depth, int val, int hashf, Point bestMove) {
+	HASH *phash = &hashTable[ZobristKey & (TableSize - 1)];
+	phash->key = ZobristKey;
+	phash->best = bestMove;
+	phash->value = val;
+	phash->flags = hashf;
+	phash->depth = depth;
+}
+
+int Gobang_Rules::NegaScout_hash(int &tx, int &ty, int depth, int alpha, int beta, int player)
+{
+	static int max_depth = depth;
+	int x, y, value;
+	Point bestMove;
+
+	int hashf = hash_ALPHA;
+	if ((value = ProbeHash(depth, alpha, beta, bestMove)) != valUNKNOWN) 
+		return value;
+
+	if (depth == 0)
+	{
+		value = Evaluate(player);
+		RecordHash(depth, value, hash_EXACT, bestMove);
+		return value;
+	}
+		
+	for (x = 0; x < 15; x++)
+	{
+		for (y = 0; y < 15; y++)
+		{
+			if (Gobang::getBoard(x, y) == EMPTY)
+			{
+				Gobang::setBoard(x, y, player);
+				value = -NegaScout_hash(tx, ty, depth - 1, -beta, -alpha, notplayer(player));
+				Gobang::setEmpty(x, y);
+				if (value >= beta)
+				{
+					RecordHash(depth, value, hash_BETA, bestMove);
+					return beta;
+				}					
+				if (value > alpha)
+				{
+					hashf = hash_EXACT;
+					alpha = value;
+					if (depth == max_depth)
+					{
+						tx = x;
+						ty = y;
+					}
+				}
+			}
+		}
+	}
+	RecordHash(depth, alpha, hashf, bestMove);
+	return alpha;
+}
+
+
 
 #endif
+
