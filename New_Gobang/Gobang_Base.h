@@ -13,7 +13,7 @@ using namespace std;
 #define EMPTY  0 //空子
 #define BLACK  1 //黑子
 #define WHITE  2 //白子
-#define INFINITY 100000
+#define INFINITY 99999
 #define random(a,b) (rand()%(b-a+1)+a) //取值范围为[a,b]的随机数
 #define E 4
 #define F 5
@@ -33,10 +33,12 @@ using namespace std;
 #define STWO 8 //眠二
 #define ANALSISED   255//已分析过的
 #define TOBEANALSIS -1  //待分析的
+#define TableSize 1024*1024 //置换表大小
+#define valUNKNOWN 100000
 
 typedef __int64 U64;
 //定义了枚举型的数据类型，精确，下边界，上边界
-enum FLAG_TYPE { EXACT, ALPHA, BETA};
+enum FLAG_TYPE { hash_EXACT, hash_ALPHA, hash_BETA};
 
 struct Step {
 	int x, y, color;
@@ -47,13 +49,13 @@ typedef struct Point {
 };
 
 //哈希表中元素的结构定义
-typedef struct tagHASHE {
+typedef struct tagHASH {
 	U64 key;  //64位校验码
 	int depth;  //深度
-	int flags;  //数据类型标记（hashfEXACT, hashfALPHA, hashfBETA）
+	int flags;  //数据类型标记（hash_EXACT, hash_ALPHA, hash_BETA）
 	int value;  //估值
 	Point best;  //有利落子点
-} HASHE;
+} HASH;
 
 static int MAN, COM;
 static int Board[15][15]; //棋盘
@@ -64,6 +66,8 @@ static Point steps[5]; //棋子位置记录
 static int TypeRecord[15][15][4];  //记录全部棋子在四个方向上的分析结果
 static int TypeCount[3][15];  //记录分析结果的统计值   
 static U64 zobrist[2][15][15]; //记录某一局面的键值
+static HASH hashTable[TableSize];  //置换表
+static U64 ZobristKey; //当前键值值
 static int Direct[4][2] = { { 1,-1 },{ 1,0 },{ 1,1 },{ 0,1 } };  //四个方向上x,y分别进行的移动值
 
 //26这种开局的黑3位置坐标，前13个为直指开局，后13个为斜指开局
@@ -84,6 +88,7 @@ static Point Lib1[8][5] = {
 { 8,I,10,F,6,F },{ 7,H,10,F,10,J }, 
 };
 
+//棋盘位置重要性价值表
 static int PosValue[15][15] = {
 { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 { 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },
@@ -101,7 +106,7 @@ static int PosValue[15][15] = {
 { 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 },
 { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } };
 
-
+int color_Five[2][5] = { {10,11,12,13,14},{15,16,17,18,19} };
 class Gobang
 {
 public:
@@ -110,15 +115,20 @@ public:
 		Init_Board(); 
 	}
 
-	void Init_Board() //初始化棋盘
+	//初始化棋盘
+	void Init_Board()
 	{
 		int i, j;
 		for (i = 0; i < 15; i++)
 			for (j = 0; j < 15; j++)
 				Board[i][j] = EMPTY; //将棋盘全部置空
+
+		ZobristKey = rand64();
+		InitializeHashKey();
 	}
 
-	void Print_Checkerboard() //打印棋盘
+	//打印棋盘
+	void Print_Checkerboard()
 	{
 		int i, j;
 		cout << "  A B C D E F G H I J K L M N O" << endl;
@@ -166,35 +176,41 @@ public:
 		}
 	}
 
-	int setBoard(int x, int y, int Piece_Color) //落子
+	//落子
+	int setBoard(int x, int y, int Piece_Color) 
 	{
 		if (x >= 0 && x < 15 && y >= 0 && y < 15 && Board[x][y] == EMPTY) //在棋盘内，且为空
 		{
 			Board[x][y] = Piece_Color;
 			sx.push(x); sy.push(y); //记录下棋步骤
+			ZobristKey = ZobristKey ^ zobrist[Piece_Color - 1][x][y];
 			return 0;
 		}
 		else
 			return -1;
 	}
 
-	int setEmpty(int x, int y) //将棋盘位子置空
+	//将棋盘位子置空
+	int setEmpty(int x, int y) 
 	{
 		if (x >= 0 && x < 15 && y >= 0 && y < 15) //在棋盘内，且为空
 		{
 			Board[x][y] = EMPTY;
+			ZobristKey = ZobristKey ^ zobrist[Board[x][y] - 1][x][y];
 			return 0;
 		}
 		else
 			return -1;
 	}
 
-	int getBoard(int x, int y) //返回棋盘位子状态
+	//返回棋盘位子状态
+	int getBoard(int x, int y) 
 	{
 		return Board[x][y];
 	}
 
-	int setBack()
+	//回退
+	int setBack() 
 	{
 		if (!sx.empty() && !sy.empty()) //判断栈中是否有元素
 		{
@@ -204,6 +220,65 @@ public:
 			return 0;
 		}
 		return -1;
+	}
+
+	//判断某一方是否连成五子
+	int IsWin(int x, int y)
+	{
+		int i, tx, ty, len, j;
+		int Side = getBoard(x, y);//取得落子颜色
+		for (i = 0; i < 4; i++)//4个方向的循环
+		{
+			tx = x; ty = y;//设置观察起点
+			len = 0;//设置计数器
+			while (tx >= 0 && tx < 15 && ty >= 0 && ty < 15 && getBoard(tx, ty) == Side)//连珠条件
+			{
+				tx -= Direct[i][0];//沿一个方向
+				ty -= Direct[i][1];//移动观察点
+			}
+			tx += Direct[i][0];
+			ty += Direct[i][1];
+			while (tx >= 0 && tx < 15 && ty >= 0 && ty < 15 && getBoard(tx, ty) == Side)//连珠条件
+			{
+				len++;//计数
+				tx += Direct[i][0];//沿相反方向
+				ty += Direct[i][1];//移动观察点
+			}
+			if (len >= 5)//比较连珠数目				
+				return 0;//获胜
+		}
+		return -1;//为获胜
+	}
+
+	//取敌方棋子颜色
+	int notplayer(int player)  
+	{
+		if (player == COM)
+			return MAN;
+		else if (player == MAN)
+			return COM;
+	}
+
+	//随机生成64位检验码
+	U64 rand64()
+	{
+		return rand() ^ ((U64)rand() << 15) ^ ((U64)rand() << 30) ^ ((U64)rand() << 45) ^ ((U64)rand() << 60);
+	}
+
+	//初始化校验码
+	void InitializeHashKey()
+	{
+		int i, j, k;
+		srand((unsigned)time(NULL));
+		//填充随机数组
+		for (i = 0; i < 2; i++)
+			for (j = 0; j < 15; j++)
+				for (k = 0; k < 15; k++)
+					zobrist[i][j][k] = rand64();
+
+		//申请置换表所用空间。1M "2 个条目，读者也可指定其他大小
+		//m_pTT[0] = new HashItem[1024 * 1024];//用于存放取极大值的节点数据
+		//m_pTT[1] = new HashItem[1024 * 1024];//用于存放取极小值的节点数据
 	}
 };
 
