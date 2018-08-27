@@ -12,6 +12,53 @@ public:
 	void Print_Menu1();
 };
 
+//人人界面
+void Gobang_Steps::Print_Menu1()
+{
+	int x;
+	char y;
+	int tx, ty;
+	Gobang::Print_Checkerboard();
+	while (1)
+	{
+		while (true) {
+			cout << "请黑方落子：";
+			cin >> x; cin >> y;
+			if (Gobang::setBoard(15 - x, y - 'A', BLACK) == -1)
+				cout << "请选择正确的位置落子！" << endl;
+			else
+				break;
+		}
+		Gobang::Print_Checkerboard();
+		if (Gobang::IsWin(15 - x, y - 'A') == 0)
+			cout << "黑方获胜!" << endl;
+		tx = 15 - x; ty = y - 'A';
+		if (PreJudge(tx, ty) != 0)
+		{
+			Gobang::setBoard(tx, ty, WHITE);
+			Gobang::Print_Checkerboard();
+		}
+
+		while (true) {
+			cout << "请白方落子：";
+			cin >> x; cin >> y;
+			if (Gobang::setBoard(15 - x, y - 'A', WHITE) == -1)
+				cout << "请选择正确的位置落子！" << endl;
+			else
+				break;
+		}
+		Gobang::Print_Checkerboard();
+		if (Gobang::IsWin(15 - x, y - 'A') == 0)
+			cout << "白方获胜!" << endl;
+		tx = 15 - x; ty = y - 'A';
+		if (PreJudge(tx, ty) != 0)
+		{
+			Gobang::setBoard(tx, ty, BLACK);
+			Gobang::Print_Checkerboard();
+		}
+	}
+}
+
 //指定开局
 void Gobang_Steps::Opening()
 {
@@ -183,9 +230,9 @@ void Gobang_Steps::Continue()
 		ty = steps[2].y;
 		if (PreJudge(tx, ty) == 0)
 			//minmaxSearch(2, tx, ty);
-		    NegaScoutSearch(tx, ty, 2, -INFINITY, +INFINITY, COM);
-		cout << "（白方）落子：" << "(" << 15 - tx << " , " << char(ty + 'A') << ")" << endl;
-		Gobang::setBoard(tx, ty, COM);
+		    NegaScoutSearch(2, -INFINITY, +INFINITY, COM);
+		cout << "（白方）落子：" << "(" << 15 - X << " , " << char(Y + 'A') << ")" << endl;
+		Gobang::setBoard(X, Y, COM);
 		Gobang::Print_Checkerboard();
 	}
 
@@ -212,8 +259,8 @@ void Gobang_Steps::Continue()
 		tx = x, ty = y;
 		if (PreJudge(tx, ty) == 0)
 			 //minmaxSearch(3, tx, ty);
-			NegaScoutSearch(tx, ty, 2, -INFINITY, +INFINITY, COM);
-		Gobang::setBoard(tx, ty, COM);
+			NegaScoutSearch(2, -INFINITY, +INFINITY, COM);
+		Gobang::setBoard(X, Y, COM);
 		(COM == BLACK) ? cout << "（黑方）落子：" : cout << "（白方）落子：";
 		cout << "(" << 15 - tx << " , " << char(ty + 'A') << ")" << endl;
 		Gobang::Print_Checkerboard();
@@ -225,51 +272,6 @@ void Gobang_Steps::Continue()
 	}
 }
 
-void Gobang_Steps::Print_Menu1()
-{
-	int x;
-	char y;
-	int tx, ty;
-	Gobang::Print_Checkerboard();
-	while (1)
-	{
-		while (true) {
-			cout << "请黑方落子：";
-			cin >> x; cin >> y;
-			if (Gobang::setBoard(15 - x, y - 'A', BLACK) == -1)
-				cout << "请选择正确的位置落子！" << endl;
-			else
-				break;
-		}
-		Gobang::Print_Checkerboard();
-		if (Gobang::IsWin(15 - x, y - 'A') == 0)
-			cout << "黑方获胜!" << endl;
-		tx = 15 - x; ty = y - 'A';
-		if (PreJudge(tx, ty) != 0)
-		{
-			Gobang::setBoard(tx, ty, WHITE);
-			Gobang::Print_Checkerboard();
-		}
-
-		while (true) {
-			cout << "请白方落子：";
-			cin >> x; cin >> y;
-			if (Gobang::setBoard(15 - x, y - 'A', WHITE) == -1)
-				cout << "请选择正确的位置落子！" << endl;
-			else
-				break;
-		}
-		Gobang::Print_Checkerboard();
-		if (Gobang::IsWin(15 - x, y - 'A') == 0)
-			cout << "白方获胜!" << endl;
-		tx = 15 - x; ty = y - 'A';
-		if (PreJudge(tx, ty) != 0)
-		{
-			Gobang::setBoard(tx, ty, BLACK);
-			Gobang::Print_Checkerboard();
-		}
-	}
-}
 
 
 #endif 
