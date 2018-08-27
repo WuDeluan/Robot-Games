@@ -18,16 +18,17 @@ public:
 	int IsLegal(int x, int y); //是否存在禁手 
 	int Evaluate(int palyer); //估值函数，对某一局面的估值
 	void Analysis(int x, int y);  //对某一点的估值判断
-	int minmaxSearch(int depth, int &tx, int &ty);  //极大极小值搜索算法
-	int MaxSearch(int depth, int tx, int ty); //极大值搜索算法
-	int MinSearch(int depth, int tx, int ty); //极小值搜索算法
-	int Alphabeta(int &tx, int &ty, int depth, int alpha, int beta, int player);  //αβ剪枝算法
-	int NegaScoutSearch(int &tx, int &ty, int depth, int alpha, int beta, int player);  //负极值搜索
+	int CreateMoveList(int depth);  //生成可能的落子点列表
+	int minmaxSearch(int depth);  //极大极小值搜索算法
+	int MaxSearch(int depth); //极大值搜索算法
+	int MinSearch(int depth); //极小值搜索算法
+	int Alphabeta(int depth, int alpha, int beta, int plyer);  //αβ剪枝算法
+	int NegaScoutSearch(int depth, int alpha, int beta, int player);  //负极侦察搜索
 	U64 rand64(); //随机生成64位校验码
 	void InitializeHashKey(); //初始化检验码
 	int ProbeHash(int depth, int alpha, int beta, Point &bestMove); //检验置换表中元素
 	void RecordHash(int depth, int val, int hashf, Point bestMove); //添加元素到置换表中
-	int NegaScout_hash(int &tx, int &ty, int depth, int alpha, int beta, int player);  //负极值搜索
+	int NegaScout_hash(int depth, int alpha, int beta, int player);  //负极值搜索
 };
 
 //指定开局
@@ -289,7 +290,7 @@ int Gobang_Rules::PreJudge(int &x, int &y)
 	return 1;
 }
 
-//是否存在禁手
+//是否存在禁手,存在返回0，不存在返回1
 int Gobang_Rules::IsLegal(int x, int y)
 {
 	int i, j, tx, ty, len = 0;
@@ -363,9 +364,9 @@ int Gobang_Rules::IsLegal(int x, int y)
 	}
 
 	if (three > 1 || four > 1)
-		return 1;
-	else
 		return 0;
+	else
+		return 1;
 }
 
 //估值函数，对某一局面的估值
@@ -555,7 +556,7 @@ int Gobang_Rules::Evaluate(int player)
 	if (player == WHITE)
 		return WValue - BValue;
 	else
-		return BValue - WValue;	
+		return BValue - WValue;
 }
 
 //对某一点的估值判断
@@ -696,208 +697,173 @@ void Gobang_Rules::Analysis(int x, int y)
 	}
 }
 
-//极大极小值搜索算法
-int Gobang_Rules::minmaxSearch(int depth, int &tx, int &ty)
+//创建可能的落子列表
+int Gobang_Rules::CreateMoveList(int depth)
 {
-	int bestMoveX, bestMoveY;
 	int x, y;
-	int bestValue = -INFINITY;
+	int MoveCount = 0;
+	for (x = 0; x < 15; x++)
+	{
+		for (y = 0; y < 15; y++)
+		{
+			//位置为空，且周围3×3范围内有棋子
+			if (Gobang::getBoard(x, y) == EMPTY && Gobang::IsNeighbor(x, y) && IsLegal(x, y))
+			{
+				MoveList[depth][MoveCount].x = x;
+				MoveList[depth][MoveCount].y = y;
+				MoveCount++;
+			}
+		}
+	}
+	return MoveCount;
+}
+
+//极大极小值搜索算法
+int Gobang_Rules::minmaxSearch(int depth)
+{
+	int bestMoveX, bestMoveY, bestValue = -INFINITY;
+	int i, MoveCount;
 	if (depth == 0)
 		return Evaluate(COM);
 	else
 	{
-		//for (x = tx - 4; x <= tx + 4; x++)
-		for (x = 0; x < 15; x++)
+		MoveCount = CreateMoveList(depth);
+		for (i = 0; i < MoveCount; i++)
 		{
-			//for (y = ty - 4; y <= ty + 4; y++)
-			for (y = 0; y < 15; y++)
+			Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, COM); //生成棋面
+			int value = MinSearch(depth - 1);
+			if (value > bestValue)
 			{
-				//if (x >= 0 && x < 15 && y >= 0 && y < 15 && Gobang::getBoard(x, y) == EMPTY)
-				if (Gobang::getBoard(x, y) == EMPTY)
-				{
+				bestValue = value;
+				bestMoveX = MoveList[depth][i].x;
+				bestMoveY = MoveList[depth][i].y;
 
-					Gobang::setBoard(x, y, COM); //生成棋面
-					if (IsLegal(x, y) == 0)
-					{
-						int value = MinSearch(depth - 1, x, y);
-						if (value > bestValue)
-						{
-							bestValue = value;
-							bestMoveX = x;
-							bestMoveY = y;
-
-						}
-						else if (value == bestValue)
-						{
-							bestMoveX = x;
-							bestMoveY = y;
-						}
-					}
-					Gobang::setEmpty(x, y); //恢复棋面
-				}
 			}
+			else if (value == bestValue)
+			{
+				bestMoveX = MoveList[depth][i].x;
+				bestMoveY = MoveList[depth][i].y;
+			}
+			Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y); //恢复棋面
 		}
 	}
-	tx = bestMoveX;
-	ty = bestMoveY;
+	X = bestMoveX;
+	Y = bestMoveY;
 }
 
 //极大值搜索算法
-int Gobang_Rules::MaxSearch(int depth, int tx, int ty)
+int Gobang_Rules::MaxSearch(int depth)
 {
-	int bestValue = -INFINITY, x, y;
+	int bestValue = -INFINITY, i;
+	int MoveCount, value;
 	if (depth == 0)
-	{
-		int L = Evaluate(COM);
-		//cout << "max  " << L << endl;
-		return L;
-	}
+		return Evaluate(COM);
 	else
 	{
-		int value;
-		//for (x = tx - 4; x <= tx + 4; x++)
-		for (x = 0; x < 15; x++)
+		MoveCount = CreateMoveList(depth);
+		for (i = 0; i < MoveCount; i++)
 		{
-			//for (y = ty - 4; y <= ty + 4; y++)
-			for (y = 0; y < 15; y++)
-			{
-				//if (x >= 0 && x < 15 && y >= 0 && y < 15 && Gobang::getBoard(x, y) == EMPTY)
-				if (Gobang::getBoard(x, y) == EMPTY)
-				{
-					setBoard(x, y, COM);
-					if (IsLegal(x, y) == 0)
-					{
-						value = MinSearch(depth - 1, tx, ty);
-						if (value > bestValue)
-							bestValue = value;
-					}
-					setEmpty(x, y);
-				}
-			}
+			Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, COM);
+			value = MinSearch(depth - 1);
+			Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y);
+			if (value > bestValue)
+				bestValue = value;
 		}
 	}
-	//cout << "                      MAX   " << bestValue << endl;
 	return bestValue;
 }
 
 //极小值搜索算法
-int Gobang_Rules::MinSearch(int depth, int tx, int ty)
+int Gobang_Rules::MinSearch(int depth)
 {
-	int bestValue = INFINITY, x, y;
+	int bestValue = INFINITY, i;
+	int MoveCount, value;
 	if (depth == 0)
-	{
-		int L = Evaluate(COM);
-		//cout << "min  " << L << endl;
-		return L;
-	}
+		return Evaluate(COM);
 	else
 	{
-		int value;
-		//for (x = tx - 4; x <= tx + 4; x++)
-		for (x = 0; x < 15; x++)
+		MoveCount = CreateMoveList(depth);
+		for (i = 0; i < MoveCount; i++)
 		{
-			//for (y = ty - 4; y <= ty + 4; y++)
-			for (y = 0; y < 15; y++)
-			{
-				//if (x >= 0 && x < 15 && y >= 0 && y < 15 && Gobang::getBoard(x, y) == EMPTY)
-				if (Gobang::getBoard(x, y) == EMPTY)
-				{
-					setBoard(x, y, MAN);
-					if (IsLegal(x, y) == 0)
-					{
-						value = MaxSearch(depth - 1, tx, ty);
-						if (value < bestValue)
-							bestValue = value;
-					}
-					setEmpty(x, y);
-				}
-			}
+			Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, MAN);
+			value = MaxSearch(depth - 1);
+			Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y);
+			if (value < bestValue)
+				bestValue = value;
 		}
 	}
-	//cout << "                           MIN   " << bestValue << endl;
 	return bestValue;
 }
 
 //αβ剪枝搜索算法
-int Gobang_Rules::Alphabeta(int &tx, int &ty, int depth, int alpha, int beta, int player)
+int Gobang_Rules::Alphabeta(int depth, int alpha, int beta, int player)
 {
-	int x, y, value;
+	int i, value, MoveCount;
 	if (depth == 0)
 		return Evaluate(COM);
 	if (player == COM)
 	{
-		for (x = 0; x < 15; x++)
+		MoveCount = CreateMoveList(depth);
+		for (i = 0; i < MoveCount; i++)
 		{
-			for (y = 0; y < 15; y++)
+
+			Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, COM);
+			value = Alphabeta(depth - 1, alpha, beta, MAN);
+			Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y);
+			if (value > alpha)
 			{
-				if (Gobang::getBoard(x, y) == EMPTY)
-				{
-					Gobang::setBoard(x, y, COM);
-					value = Alphabeta(tx, ty, depth - 1, alpha, beta, MAN);
-					Gobang::setEmpty(x, y);
-					if (value > alpha)
-					{
-						alpha = value;
-						tx = x;
-						ty = y;
-					}
-					if (alpha >= beta)
-						return alpha;
-				}
+				alpha = value;
+				X = MoveList[depth][i].x;
+				Y = MoveList[depth][i].y;
 			}
+			if (alpha >= beta)
+				return alpha;
+
 		}
 		return alpha;
 	}
 	else if (player == MAN)
 	{
-		for (x = 0; x < 15; x++)
+		MoveCount = CreateMoveList(depth);
+		for (i = 0; i < MoveCount; i++)
 		{
-			for (y = 0; y < 15; y++)
-			{
-				if (Gobang::getBoard(x, y) == EMPTY)
-				{
-					Gobang::setBoard(x, y, MAN);
-					value = Alphabeta(tx, ty, depth - 1, alpha, beta, COM);
-					Gobang::setEmpty(x, y);
-					if (value < beta)
-						beta = value;
-					if (beta <= alpha)
-						return beta;
-				}
-			}
+
+			Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, MAN);
+			value = Alphabeta(depth - 1, alpha, beta, COM);
+			Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y);
+			if (value < beta)
+				beta = value;
+			if (beta <= alpha)
+				return beta;
 		}
 		return beta;
 	}
 }
 
-//负极值搜索算法
-int Gobang_Rules::NegaScoutSearch(int &tx, int &ty, int depth, int alpha, int beta, int player)
+//负值侦察算法
+int Gobang_Rules::NegaScoutSearch(int depth, int alpha, int beta, int player)
 {
 	static int max_depth = depth;
-	int x, y, value;
+	int i, value, MoveCount;
 
 	if (depth == 0)
 		return Evaluate(player);
-	for (x = 0; x < 15; x++)
+
+	MoveCount = CreateMoveList(depth);
+	for (i = 0; i < MoveCount; i++)
 	{
-		for (y = 0; y < 15; y++)
+		Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, player);
+		value = -NegaScoutSearch(depth - 1, -beta, -alpha, notplayer(player));
+		Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y);
+		if (value >= beta)
+			return beta;
+		if (value > alpha)
 		{
-			if (Gobang::getBoard(x, y) == EMPTY)
+			alpha = value;
+			if (depth == max_depth)
 			{
-				Gobang::setBoard(x, y, player);
-				value = -NegaScoutSearch(tx, ty, depth - 1, -beta, -alpha, notplayer(player));
-				Gobang::setEmpty(x, y);
-				if (value >= beta)
-					return beta;
-				if (value > alpha)
-				{
-					alpha = value;
-					if (depth == max_depth)
-					{
-						tx = x;
-						ty = y;
-					}
-				}
+				X = MoveList[depth][i].x;
+				Y = MoveList[depth][i].y;
 			}
 		}
 	}
@@ -935,14 +901,15 @@ void Gobang_Rules::RecordHash(int depth, int val, int hashf, Point bestMove) {
 	phash->depth = depth;
 }
 
-int Gobang_Rules::NegaScout_hash(int &tx, int &ty, int depth, int alpha, int beta, int player)
+//加入置换表的负值侦察搜索
+int Gobang_Rules::NegaScout_hash(int depth, int alpha, int beta, int player)
 {
 	static int max_depth = depth;
-	int x, y, value;
+	int i, value, MoveCount;
 	Point bestMove;
 
 	int hashf = hash_ALPHA;
-	if ((value = ProbeHash(depth, alpha, beta, bestMove)) != valUNKNOWN) 
+	if ((value = ProbeHash(depth, alpha, beta, bestMove)) != valUNKNOWN)
 		return value;
 
 	if (depth == 0)
@@ -951,33 +918,31 @@ int Gobang_Rules::NegaScout_hash(int &tx, int &ty, int depth, int alpha, int bet
 		RecordHash(depth, value, hash_EXACT, bestMove);
 		return value;
 	}
-		
-	for (x = 0; x < 15; x++)
+
+	MoveCount = CreateMoveList(depth);
+	for (i = 0; i < MoveCount; i++)
 	{
-		for (y = 0; y < 15; y++)
+		Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, player);
+		value = -NegaScout_hash(depth - 1, -beta, -alpha, notplayer(player));
+		Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y);
+		if (value >= beta)
 		{
-			if (Gobang::getBoard(x, y) == EMPTY)
+			RecordHash(depth, value, hash_BETA, bestMove);
+			return beta;
+		}
+		if (value > alpha)
+		{
+			hashf = hash_EXACT;
+			alpha = value;
+			bestMove.x = MoveList[depth][i].x;
+			bestMove.y = MoveList[depth][i].y;
+			if (depth == max_depth)
 			{
-				Gobang::setBoard(x, y, player);
-				value = -NegaScout_hash(tx, ty, depth - 1, -beta, -alpha, notplayer(player));
-				Gobang::setEmpty(x, y);
-				if (value >= beta)
-				{
-					RecordHash(depth, value, hash_BETA, bestMove);
-					return beta;
-				}					
-				if (value > alpha)
-				{
-					hashf = hash_EXACT;
-					alpha = value;
-					if (depth == max_depth)
-					{
-						tx = x;
-						ty = y;
-					}
-				}
+				X = MoveList[depth][i].x;
+				Y = MoveList[depth][i].y;
 			}
 		}
+
 	}
 	RecordHash(depth, alpha, hashf, bestMove);
 	return alpha;
