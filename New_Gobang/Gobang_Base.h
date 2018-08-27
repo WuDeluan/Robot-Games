@@ -34,7 +34,8 @@ using namespace std;
 #define ANALSISED   255//已分析过的
 #define TOBEANALSIS -1  //待分析的
 #define TableSize 1024*1024 //置换表大小
-#define valUNKNOWN 100000
+#define valUNKNOWN 100000 //置换表中无匹配返回值
+#define R 2 //空着向前裁剪层数减少因子
 
 typedef __int64 U64;
 //定义了枚举型的数据类型，精确，下边界，上边界
@@ -44,9 +45,12 @@ struct Step {
 	int x, y, color;
 };
 typedef struct Point {
-	int x;
-	int y;
+	int x; int y;
 };
+typedef struct Move {
+	int x; int y;
+	int score;
+}MOVE;
 
 //哈希表中元素的结构定义
 typedef struct tagHASH {
@@ -58,6 +62,7 @@ typedef struct tagHASH {
 } HASH;
 
 static int MAN, COM;
+static int X, Y;
 static int Board[15][15]; //棋盘
 static int points; //打点数
 static stack <int> sx; //记录下棋步骤
@@ -68,6 +73,7 @@ static int TypeCount[3][15];  //记录分析结果的统计值
 static U64 zobrist[2][15][15]; //记录某一局面的键值
 static HASH hashTable[TableSize];  //置换表
 static U64 ZobristKey; //当前键值值
+static MOVE MoveList[10][15 * 15];  //存储不同深度下可能的落子点，
 static int Direct[4][2] = { { 1,-1 },{ 1,0 },{ 1,1 },{ 0,1 } };  //四个方向上x,y分别进行的移动值
 
 //26这种开局的黑3位置坐标，前13个为直指开局，后13个为斜指开局
@@ -193,10 +199,10 @@ public:
 	//将棋盘位子置空
 	int setEmpty(int x, int y) 
 	{
-		if (x >= 0 && x < 15 && y >= 0 && y < 15) //在棋盘内，且为空
+		if (x >= 0 && x < 15 && y >= 0 && y < 15 && Board[x][y] != EMPTY) //在棋盘内，且为空
 		{
-			Board[x][y] = EMPTY;
 			ZobristKey = ZobristKey ^ zobrist[Board[x][y] - 1][x][y];
+			Board[x][y] = EMPTY;
 			return 0;
 		}
 		else
@@ -279,6 +285,21 @@ public:
 		//申请置换表所用空间。1M "2 个条目，读者也可指定其他大小
 		//m_pTT[0] = new HashItem[1024 * 1024];//用于存放取极大值的节点数据
 		//m_pTT[1] = new HashItem[1024 * 1024];//用于存放取极小值的节点数据
+	}
+
+	//位置周围3×3范围内是否有棋子
+	int IsNeighbor(int tx, int ty)
+	{
+		int x, y;
+		for (x = tx - 3; x <= tx + 3; x++)
+		{
+			for (y = ty - 3; y <= ty + 3; y++)
+			{
+				if (x >= 0 && x < 15 && y >= 0 && y < 15 && Board[x][y] != EMPTY)
+					return 1;
+			}
+		}
+		return 0;
 	}
 };
 
