@@ -47,7 +47,7 @@
      <br>MaxSearch(int depth, int tx, int ty)
      <br>MinSearch(int depth, int tx, int ty)
      简单遍历整个棋盘，找到空的棋盘位置进行递归搜索，返回估值。由于估值函数太过粗糙，搜索结果糟糕。且当层数加深时，搜索时间较长，搜索效率极低。
-     <br>经简单测试，当depth=3时，约需30min给出测试局面的结果。
+     经简单测试，当depth=3时，约需30min给出测试局面的结果。
      
      
      
@@ -65,28 +65,28 @@
 		       return Evaluate();
 	      if (player == COM)
 	      {
-               MakeMove();
-			      value = Alphabeta(depth - 1, alpha, beta, MAN);
-			      UnMakeMove();
-			      if (value > alpha)
-			      {
-				      alpha = value;
-                  RecordMove();
-			      }
-			      if (alpha >= beta)
-			      	return alpha;
-		      return alpha;
+               		MakeMove();
+			value = Alphabeta(depth - 1, alpha, beta, MAN);
+			UnMakeMove();
+			if (value > alpha)
+			{
+			      alpha = value;
+                 	       RecordMove();
+		       }
+		       if (alpha >= beta)
+			      return alpha;
+		    return alpha;
 	      }
 	      else if (player == MAN)
 	      {
 		         MakeMove();
-			      value = Alphabeta(depth - 1, alpha, beta, COM);
-			      UnMakeMove();
-			      if (value < beta)
-			      	beta = value;
+	                 value = Alphabeta(depth - 1, alpha, beta, COM);
+			 UnMakeMove();
+			 if (value < beta)
+			      beta = value;
 			      if (beta <= alpha)
-			      	return beta;
-		      return beta;
+			      	 return beta;
+		       return beta;
 	      }
       }
   ``` 
@@ -103,10 +103,10 @@
    - int Eveluate();
    - int Analysis(int x, int y);
    <br>    通过查阅资料和参考其他程序代码，修改估值函数，使估值函数对整个局面进行估值，而不是简单的对某一结点周围的局面进行评估。分析时，查找当前
-   <br>局面的非空坐标点，获取棋子颜色，对其四个方向上的连子类型进行分析判断，将结果保存于数组`int ypeRecord[15][15][4];`（数组下标分别表示
-   <br>位置坐标x、y和方向标记。分析完毕后，对数组`TypeRecord[15][15][4];`进行统计，结果保存在`int TypeCount[2][15];`中（数组下标分别
-   <br>表示棋子颜色，连子类型标记).根据数组`TypeCount[2][15];`，对双方进行估值计算，并根据位置重要性价值表`PosValue[15][15]`丰富估计值，
-   <br>最后返估计值。
+   局面的非空坐标点，获取棋子颜色，对其四个方向上的连子类型进行分析判断，将结果保存于数组`int ypeRecord[15][15][4];`（数组下标分别表示
+   位置坐标x、y和方向标记。分析完毕后，对数组`TypeRecord[15][15][4];`进行统计，结果保存在`int TypeCount[2][15];`中（数组下标分别
+   表示棋子颜色，连子类型标记).根据数组`TypeCount[2][15];`，对双方进行估值计算，并根据位置重要性价值表`PosValue[15][15]`丰富估计值，
+   最后返估计值。
    <br>    估值函数始终返回对电脑方的评价值
    
    
@@ -222,7 +222,7 @@
 	         	RecordHash(depth, value, hash_EXACT, bestMove);
 	         	return value;
 	         }
-               MakeMove();
+                         MakeMove();
 		         value = -NegaScout_hash(depth - 1, -beta, -alpha, notplayer(player));
 		         UnMakeMove();
 		         if (value >= beta)
@@ -234,9 +234,9 @@
 		         {
 		         	hashf = hash_EXACT;
 		         	alpha = value;
-			         RecordMove()
-			         if (depth == max_depth)
-			          RecordBestMove()
+			        RecordMove()
+			        if (depth == max_depth)
+			           RecordBestMove()
 		         }
 
 	         }
@@ -244,15 +244,15 @@
 	         return alpha;
          }
  
- ```
+  ```
  
  
- ## Aug 17 2018
+ ## Aug 27 2018
  
  ### 1.裁剪棋盘
-    - int IsNeighbor(int tx, int ty)   //位置周围3×3范围内是否有棋子
-    - int Gobang_Rules::CreateMoveList(int depth)   //创建可能的落子列表
+   - int IsNeighbor(int tx, int ty)   //位置周围3×3范围内是否有棋子
+   - int Gobang_Rules::CreateMoveList(int depth)   //创建可能的落子列表
     <br>在搜索前，遍历整个棋盘，找到棋盘范围内位置为空，周围3×3范围内有棋子，且落子后无禁手的位置，保存至数组`MoveList[depth][MoveCount]`
-    <br>(数组下标表示所在深度、合理着法位置的数量标记）。
+    (数组下标表示所在深度、合理着法位置的数量标记）。
  ### 2.修改搜索函数
-     <br>将搜索函数中用于遍历全盘的代码改为遍历`Movelist`。
+   - 将搜索函数中用于遍历全盘的代码改为遍历`Movelist`。
