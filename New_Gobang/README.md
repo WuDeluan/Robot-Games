@@ -44,9 +44,9 @@
    - Function(int len, string side1, string side2) //对连子的两端进行判断，给出估计值
 ### 3.极大极小值搜索
    - minmaxSearch(int depth, int &tx, int &ty)
-     <br>MaxSearch(int depth, int tx, int ty)
-     <br>MinSearch(int depth, int tx, int ty)
-     简单遍历整个棋盘，找到空的棋盘位置进行递归搜索，返回估值。由于估值函数太过粗糙，搜索结果糟糕。且当层数加深时，搜索时间较长，搜索效率极低。
+   - MaxSearch(int depth, int tx, int ty)
+   - MinSearch(int depth, int tx, int ty)
+    <br> 简单遍历整个棋盘，找到空的棋盘位置进行递归搜索，返回估值。由于估值函数太过粗糙，搜索结果糟糕。且当层数加深时，搜索时间较长，搜索效率极低。
      经简单测试，当depth=3时，约需30min给出测试局面的结果。
      
      
@@ -65,7 +65,7 @@
 		       return Evaluate();
 	      if (player == COM)
 	      {
-               		MakeMove();
+                        MakeMove();
 			value = Alphabeta(depth - 1, alpha, beta, MAN);
 			UnMakeMove();
 			if (value > alpha)
@@ -118,7 +118,7 @@
    - int PreJudge_IsFive(int &x, int &y);   //预判是否有连子的可能
    - int PreJudge_IsFour(int &x, int &y);   //预判是否出现必须防守的情况
    <br>在进行搜索算法之前，先判断棋盘的空位中，是否有一处可以使我方连成五子的情况，若有则直接落子。若无，则判断敌方是否有冲四等必须防守的情况，
-   <br>若有，则直接落子（这里不直接处理活三的情况，而是通过搜索算法给出）。   
+   若有，则直接落子（这里不直接处理活三的情况，而是通过搜索算法给出）。   
 ### 2.禁手判断
    - int IsLegal(int x, int y);   //是否存在禁手
    <br>如果存在禁手，则不对该位置进行搜索。
@@ -152,12 +152,12 @@
         }
    ```
    - 负值侦察在Alphabeta的基础上进行修改。当函数递归时，Alpha和Beta不但取负数而且位置交换了。这样就使函数值在每一次递归中改变评价的角度，
-    <br>以反映双方棋手的交替着子，并且它们的目标是对立的。所以，相应的估值函数在返回值应与形成估值局面的棋子颜色相对应，而不只是对电脑方。
+    以反映双方棋手的交替着子，并且它们的目标是对立的。所以，相应的估值函数在返回值应与形成估值局面的棋子颜色相对应，而不只是对电脑方。
     - max_depth由 `static int max_depth = depth;` 定义，当达到最大搜索层，且更新alpha时，保存位置。    
 ### 2.修改估值函数
    - int Evaluate(int player)
    <br>    根据负值侦察的要求，向估值函数中传入执子方。根据执子方进行相应的估值。当执子方为COM时，返回`com_value - man_Value`,反之，返回
-   <br>`man_Value - com_Value`。
+   `man_Value - com_Value`。
    <br>    将AlphaBeta中估值函数的参数player始终置为COM
 
 
