@@ -24,7 +24,7 @@
    - BlackFive(int &x, int &y) //黑5打点坐标，暂由随机数在（5，9）范围内给出
    - SaveOnePoint(int &x,int &y) //打点选择，暂为保留第一个点
 ### 2.构造交互函数
-   -void Opening()，     void ForthStep()， void FifthStep()
+   -void Opening()\<br> void ForthStep()， void FifthStep()
 
 
 
