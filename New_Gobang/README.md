@@ -24,7 +24,9 @@
    - BlackFive(int &x, int &y) //黑5打点坐标，暂由随机数在（5，9）范围内给出
    - SaveOnePoint(int &x,int &y) //打点选择，暂为保留第一个点
 ### 2.构造交互函数
-   -void Opening()<br> void ForthStep()， void FifthStep()
+   - void Opening() 
+   <br>void ForthStep()
+   <br>void FifthStep()
 
 
 
@@ -40,5 +42,5 @@
    - Function(int len, string side1, string side2) //对连子的两端进行判断，给出估计值
 ### 3.极大极小值搜索
    - minmaxSearch(int depth, int &tx, int &ty)
-         MaxSearch(int depth, int tx, int ty)
-         MinSearch(int depth, int tx, int ty)
+     <br>MaxSearch(int depth, int tx, int ty)
+     <br>MinSearch(int depth, int tx, int ty)
