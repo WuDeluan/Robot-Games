@@ -33,7 +33,7 @@ void Gobang_Steps::Print_Menu1()
 		if (Gobang::IsWin(15 - x, y - 'A') == 0)
 			cout << "黑方获胜!" << endl;
 		tx = 15 - x; ty = y - 'A';
-		if (PreJudge(tx, ty) != 0)
+		if (PreJudge(tx, ty) == 0)
 		{
 			Gobang::setBoard(tx, ty, WHITE);
 			Gobang::Print_Checkerboard();
@@ -51,7 +51,7 @@ void Gobang_Steps::Print_Menu1()
 		if (Gobang::IsWin(15 - x, y - 'A') == 0)
 			cout << "白方获胜!" << endl;
 		tx = 15 - x; ty = y - 'A';
-		if (PreJudge(tx, ty) != 0)
+		if (PreJudge(tx, ty) == 0)
 		{
 			Gobang::setBoard(tx, ty, BLACK);
 			Gobang::Print_Checkerboard();
@@ -228,11 +228,15 @@ void Gobang_Steps::Continue()
 	{
 		tx = steps[2].x;
 		ty = steps[2].y;
-		if (PreJudge(tx, ty) == 0)
-			//minmaxSearch(2, tx, ty);
-		    NegaScoutSearch(2, -INFINITY, +INFINITY, COM);
-		cout << "（白方）落子：" << "(" << 15 - X << " , " << char(Y + 'A') << ")" << endl;
-		Gobang::setBoard(X, Y, COM);
+		if (PreJudge(tx, ty) == 1)
+			Gobang::setBoard(tx, ty, COM);
+		else
+		{
+			NegaScout_hash_history(3, -INFINITY, +INFINITY, COM);
+			Gobang::setBoard(best_move.x, best_move.y, COM);
+			EmptyHashTable();
+		}	
+		cout << "（白方）落子：" << "(" << 15 - best_move.x << " , " << char(best_move.y + 'A') << ")" << endl;
 		Gobang::Print_Checkerboard();
 	}
 
@@ -258,13 +262,15 @@ void Gobang_Steps::Continue()
 		//电脑
 		tx = x, ty = y;
 		if (PreJudge(tx, ty) == 0)
-			 //minmaxSearch(3, tx, ty);
-			NegaScoutSearch(2, -INFINITY, +INFINITY, COM);
-		Gobang::setBoard(X, Y, COM);
+		{
+			NegaScout_hash_history(3, -INFINITY, +INFINITY, COM);
+			EmptyHashTable();
+		}
+		Gobang::setBoard(best_move.x, best_move.y, COM);
 		(COM == BLACK) ? cout << "（黑方）落子：" : cout << "（白方）落子：";
-		cout << "(" << 15 - tx << " , " << char(ty + 'A') << ")" << endl;
+		cout << "(" << 15 - best_move.x << " , " << char(best_move.y + 'A') << ")" << endl;
 		Gobang::Print_Checkerboard();
-		if (Gobang::IsWin(tx, ty) == 0)
+		if (Gobang::IsWin(best_move.x, best_move.y) == 0)
 		{
 			cout << "很遗憾你输了!" << endl;
 			break;
