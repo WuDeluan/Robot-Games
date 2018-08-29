@@ -22,6 +22,7 @@ using namespace std;
 #define I 8
 #define J 9 
 #define K 10
+#define L 11
 #define FIVE 0  //五连
 #define FOUR 1  //活四
 #define FFOUR 2  //冲四
@@ -39,7 +40,7 @@ using namespace std;
 
 typedef __int64 U64;
 //定义了枚举型的数据类型，精确，下边界，上边界
-enum FLAG_TYPE { hash_EXACT, hash_ALPHA, hash_BETA};
+enum FLAG_TYPE { hash_EMPTY, hash_EXACT, hash_ALPHA, hash_BETA };
 
 struct Step {
 	int x, y, color;
@@ -48,7 +49,7 @@ typedef struct Point {
 	int x; int y;
 };
 typedef struct Move {
-	int x; int y;
+	Point move;
 	int score;
 }MOVE;
 
@@ -62,7 +63,7 @@ typedef struct tagHASH {
 } HASH;
 
 static int MAN, COM;
-static int X, Y;
+static Point best_move;
 static int Board[15][15]; //棋盘
 static int points; //打点数
 static stack <int> sx; //记录下棋步骤
@@ -73,7 +74,8 @@ static int TypeCount[3][15];  //记录分析结果的统计值
 static U64 zobrist[2][15][15]; //记录某一局面的键值
 static HASH hashTable[TableSize];  //置换表
 static U64 ZobristKey; //当前键值值
-static MOVE MoveList[10][15 * 15];  //存储不同深度下可能的落子点，
+static MOVE MoveList[10][15 * 15];  //存储不同深度下可能的落子点
+static int historyTable[15][15];  //历史得分表
 static int Direct[4][2] = { { 1,-1 },{ 1,0 },{ 1,1 },{ 0,1 } };  //四个方向上x,y分别进行的移动值
 
 //26这种开局的黑3位置坐标，前13个为直指开局，后13个为斜指开局
@@ -83,7 +85,7 @@ static Point Lib[26] = {
 { 10,J },{ 9,J },{ 8,J },{ 7,J },{ 6,J },{ 8,I },{ 7,I },
 { 6,I },{ 7,H },{ 6,H },{ 7,G },{ 6,G },{ 5,F }
 };
-
+ 
 //三手交换中可交换的位置坐标，每行首个坐标为白2，其他为对应的黑3
 static Point Lib1[8][5] = {
 	{ 9,G,10,F,6,F,10,J,6,J },
@@ -91,7 +93,7 @@ static Point Lib1[8][5] = {
 { 7,G,10,F,6,F,10,J,6,J },
 { 7,I,10,F,6,F,10,J,6,J },
 { 9,H,6,F,6,J },{ 8,G,10,J,6,J },
-{ 8,I,10,F,6,F },{ 7,H,10,F,10,J }, 
+{ 8,I,10,F,6,F },{ 7,H,10,F,10,J },
 };
 
 //棋盘位置重要性价值表
@@ -118,7 +120,7 @@ class Gobang
 public:
 	Gobang()
 	{
-		Init_Board(); 
+		Init_Board();
 	}
 
 	//初始化棋盘
@@ -131,6 +133,7 @@ public:
 
 		ZobristKey = rand64();
 		InitializeHashKey();
+		ResetHistoryTable();
 	}
 
 	//打印棋盘
@@ -183,7 +186,7 @@ public:
 	}
 
 	//落子
-	int setBoard(int x, int y, int Piece_Color) 
+	int setBoard(int x, int y, int Piece_Color)
 	{
 		if (x >= 0 && x < 15 && y >= 0 && y < 15 && Board[x][y] == EMPTY) //在棋盘内，且为空
 		{
@@ -197,7 +200,7 @@ public:
 	}
 
 	//将棋盘位子置空
-	int setEmpty(int x, int y) 
+	int setEmpty(int x, int y)
 	{
 		if (x >= 0 && x < 15 && y >= 0 && y < 15 && Board[x][y] != EMPTY) //在棋盘内，且为空
 		{
@@ -210,13 +213,13 @@ public:
 	}
 
 	//返回棋盘位子状态
-	int getBoard(int x, int y) 
+	int getBoard(int x, int y)
 	{
 		return Board[x][y];
 	}
 
 	//回退
-	int setBack() 
+	int setBack()
 	{
 		if (!sx.empty() && !sy.empty()) //判断栈中是否有元素
 		{
@@ -257,7 +260,7 @@ public:
 	}
 
 	//取敌方棋子颜色
-	int notplayer(int player)  
+	int notplayer(int player)
 	{
 		if (player == COM)
 			return MAN;
@@ -287,6 +290,15 @@ public:
 		//m_pTT[1] = new HashItem[1024 * 1024];//用于存放取极小值的节点数据
 	}
 
+	//清空历史得分表
+	void ResetHistoryTable()
+	{
+		int i, j;
+		for (i = 0; i < 15; i++)
+			for (j = 0; j < 15; j++)
+				historyTable[i][j] = PosValue[i][j];
+	}
+
 	//位置周围3×3范围内是否有棋子
 	int IsNeighbor(int tx, int ty)
 	{
@@ -301,6 +313,58 @@ public:
 		}
 		return 0;
 	}
+
+	//将有序的A[Lpos]~A[Rpos-1]和A[Rpos]~A[RightEnd]归并成一个有序序列
+	void Merge(MOVE A[], MOVE TmpArray[], int Lpos, int Rpos, int RightEnd)
+	{
+		// Lpos = 左边起始位置, Rpos = 右边起始位置, RightEnd = 右边终点位置
+		int i, LeftEnd, NumElements, TmpPos;
+		LeftEnd = Rpos - 1;                   //左边终点位置
+		TmpPos = Lpos;                        //有序序列的起始位置
+		NumElements = RightEnd - Lpos + 1;
+
+		while (Lpos <= LeftEnd && Rpos <= RightEnd)
+		{
+			if (A[Lpos].score > A[Rpos].score)
+				TmpArray[TmpPos++] = A[Lpos++];//将左边元素复制到TmpA
+			else
+				TmpArray[TmpPos++] = A[Rpos++];//将右边元素复制到TmpA
+		}
+
+		while (Lpos <= LeftEnd)
+			TmpArray[TmpPos++] = A[Lpos++];  //直接复制左边剩下的
+		while (Rpos <= RightEnd)
+			TmpArray[TmpPos++] = A[Rpos++];  //直接复制右边剩下的
+
+		for (i = 0; i < NumElements; i++, RightEnd--)
+			A[RightEnd] = TmpArray[RightEnd]; //将有序的TmpA[]复制回A[] 
+	}
+
+	//递归实现
+	void MSort_Recursion(MOVE A[], MOVE TmpArray[], int Left, int Right)
+	{
+		int Center;
+		if (Left < Right)
+		{
+			Center = (Left + Right) / 2;
+			MSort_Recursion(A, TmpArray, Left, Center);            //递归解决左边
+			MSort_Recursion(A, TmpArray, Center + 1, Right);       //递归解决右边
+			Merge(A, TmpArray, Left, Center + 1, Right); //合并两段有序序列
+		}
+	}
+
+	void MergeSort(MOVE A[], int N)
+	{
+		MOVE  *TmpArray;
+		TmpArray = (MOVE*)malloc(sizeof(MOVE) * N);
+		if (TmpArray != NULL)
+		{
+			MSort_Recursion(A, TmpArray, 0, N - 1);
+			free(TmpArray);
+		}
+		else printf("空间不足");
+	}
+
 };
 
 #endif
