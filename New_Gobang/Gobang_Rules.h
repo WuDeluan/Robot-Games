@@ -11,10 +11,10 @@ public:
 	void WhiteFour(); //白4坐标
 	void BlackFive(int &x, int &y); //黑5坐标
 	void SaveOnePoint(int &x, int &y); //从黑5打点坐标中选择一个
-	int IsWin(int x, int y); //判断某一方是否连成五子
-	int PreJudge_IsFour(int &x, int &y); //预判是否出现必须防守的情况
-	int PreJudge_IsFive(int &x, int &y); //预判是否有连子的可能
-	int PreJudge(int &x, int &y);  //搜索前的预判
+	int PreJudge_IsFour(int x, int y); //预判是否出现必须防守的情况
+	int PreJudge_IsFive(); //预判是否有连子的可能
+	int PreJudge_IsThree(int x, int y); //预判是否存在活三
+	int PreJudge(int x, int y);  //搜索前的预判
 	int IsLegal(int x, int y); //是否存在禁手 
 	int Evaluate(int palyer); //估值函数，对某一局面的估值
 	void Analysis(int x, int y);  //对某一点的估值判断
@@ -24,11 +24,17 @@ public:
 	int MinSearch(int depth); //极小值搜索算法
 	int Alphabeta(int depth, int alpha, int beta, int plyer);  //αβ剪枝算法
 	int NegaScoutSearch(int depth, int alpha, int beta, int player);  //负极侦察搜索
-	U64 rand64(); //随机生成64位校验码
-	void InitializeHashKey(); //初始化检验码
+	void MakeMove(Point move, int player);
+	void MakeNullMove(Point move);
+	void EmptyHashTable(); //将置换表标识置为hash_EMPTY
 	int ProbeHash(int depth, int alpha, int beta, Point &bestMove); //检验置换表中元素
 	void RecordHash(int depth, int val, int hashf, Point bestMove); //添加元素到置换表中
-	int NegaScout_hash(int depth, int alpha, int beta, int player);  //负极值搜索
+	int NegaScout_hash(int depth, int alpha, int beta, int player);  //带置换表的负极值搜索
+	void ResetHistoryTable(); //清空历史得分表
+	int GetHistoryScore(Point move); //获取历史得分
+	void AddHistoryScore(int score, Point move); //添加得分
+	void SortMoveList(int depth, int MoveCount); //对可能的着法进行排序
+	int NegaScout_hash_history(int depth, int alpha, int beta, int player); //带历史得分表的负极值搜索
 };
 
 //指定开局
@@ -115,8 +121,53 @@ void Gobang_Rules::SaveOnePoint(int &x, int &y)
 	y = steps[2].y;
 }
 
+//预判是否有连子的可能
+int Gobang_Rules::PreJudge_IsFive()
+{
+	int tx, ty, m, n, i, len;
+	int Side = COM;
+	for (m = 0; m < 15; m++)
+	{
+		for (n = 0; n < 15; n++)
+		{
+			if (Gobang::getBoard(m, n) == EMPTY)
+			{
+				Gobang::setBoard(m, n, COM);
+				for (i = 0; i < 4; i++) //四个方向上进行查找
+				{
+					tx = m; ty = n;
+					len = 0; //初始化各变量
+					//找到一个方向上距离最远的同颜色棋子位置
+					while (tx >= 0 && tx < 15 && ty >= 0 && ty < 15 && Gobang::getBoard(tx, ty) == Side)
+					{
+						tx -= Direct[i][0];
+						ty -= Direct[i][1];
+					}
+					tx += Direct[i][0];
+					ty += Direct[i][1];
+					//往反方向记录连续棋子个数
+					while (tx >= 0 && tx < 15 && ty >= 0 && ty < 15 && Gobang::getBoard(tx, ty) == Side)
+					{
+						len++;
+						tx += Direct[i][0];
+						ty += Direct[i][1];
+					}
+					if (len == 5)
+					{
+						best_move.x = m;
+						best_move.y = n;
+						return 1;
+					}
+				}
+				Gobang::setEmpty(m, n);
+			}
+		}
+	}
+	return 0;
+}
+
 //预判是否出现必须防守的情况
-int Gobang_Rules::PreJudge_IsFour(int &x, int &y)
+int Gobang_Rules::PreJudge_IsFour(int x, int y)
 {
 	int i, j, tx, ty, len, k;
 	Point p1, p2;
@@ -166,12 +217,6 @@ int Gobang_Rules::PreJudge_IsFour(int &x, int &y)
 		k = 0;
 		if (len == 4)
 		{
-			/*if (side1[0] == '#' && side2[0] == '#')
-				k = 1;
-			else if (side1[0] == '#' && side2[0] == '1')
-				k = 1;
-			else if (side1[0] == '1' && side2[0] == '#')
-				k = 2;*/
 			if (side1[0] == '#')
 				k = 1;
 			else if (side2[0] == '#')
@@ -179,14 +224,6 @@ int Gobang_Rules::PreJudge_IsFour(int &x, int &y)
 		}
 		else if (len == 3)
 		{
-			/*if (side1[0] == '1' && side2.compare(0, 2, "#0") == 0)
-				k = 2;
-			else if (side1.compare(0, 2, "#0") == 0 && side2[0] == '1')
-				k = 1;
-			else if (side1.compare(0, 3, "#01") == 0)
-				k = 1;
-			else if (side2.compare(0, 3, "#01") == 0)
-				k = 2;*/
 			if (side1.compare(0, 2, "#0") == 0)
 				k = 1;
 			else if (side2.compare(0, 2, "#0") == 0)
@@ -201,18 +238,6 @@ int Gobang_Rules::PreJudge_IsFour(int &x, int &y)
 		}
 		else if (len == 1)
 		{
-			/*if (side1.compare(0, 4, "#000") == 0 && side2[0] == '#')
-				k = 1;
-			else if (side1[0] == '#' && side2.compare(0, 4, "#000") == 0)
-				k = 2;
-			else if (side1 == "#0001" && side2[0] == '#')
-				k = 1;
-			else if (side2 == "#0001" && side1[0] == '#')
-				k = 2;
-			else if (side2[0] == '1' && side1.compare(0, 4, "#000") == 0)
-				k = 1;
-			else if (side1[0] == '1' && side2.compare(0, 4, "#000") == 0)
-				k = 2;*/
 			if (side1.compare(0, 4, "#000") == 0)
 				k = 1;
 			else if (side2.compare(0, 4, "#000") == 0)
@@ -221,70 +246,115 @@ int Gobang_Rules::PreJudge_IsFour(int &x, int &y)
 
 		if (k == 1)
 		{
-			x = p1.x;
-			y = p1.y;
+			best_move.x = p1.x;
+			best_move.y = p1.y;
 			return 1;
 		}
 		else if (k == 2)
 		{
-			x = p2.x;
-			y = p2.y;
+			best_move.x = p2.x;
+			best_move.y = p2.y;
 			return 2;
 		}
 	}
 	return 0;
 }
 
-//预判是否有连子的可能
-int Gobang_Rules::PreJudge_IsFive(int &x, int &y)
+//预判是否存在活三并处理
+int Gobang_Rules::PreJudge_IsThree(int x, int y)
 {
-	int tx, ty, m, n, i, len;
-	int Side = COM;
-	for (m = 0; m < 15; m++)
+	int i, j, tx, ty, len, k, value1 = 0, value2 = 0;
+	Point p1, p2;
+	int Side = Gobang::getBoard(x, y);
+	string side1, side2; //记录两端的棋子情况
+	for (i = 0; i < 4; i++) //四个方向上进行查找
 	{
-		for (n = 0; n < 15; n++)
+		tx = x; ty = y;
+		len = 0; side1.clear(); side2.clear(); //初始化各变量
+		//找到一个方向上距离最远的同颜色棋子位置
+		while (tx >= 0 && tx < 15 && ty >= 0 && ty < 15 && Gobang::getBoard(tx, ty) == Side)
 		{
-			if (Gobang::getBoard(m, n) == EMPTY)
+			tx -= Direct[i][0];
+			ty -= Direct[i][1];
+		}
+		p1.x = tx; p1.y = ty; //记录端点1
+		//向该方向往外延申5个点，并记录
+		for (j = 0; j < 5; j++, tx -= Direct[i][0], ty -= Direct[i][1]) {
+			if (Gobang::getBoard(tx, ty) == EMPTY && tx >= 0 && ty >= 0)
+				side1 += '#';
+			else if (Gobang::getBoard(tx, ty) == Side && tx >= 0 && ty >= 0)
+				side1 += '0';
+			else
+				side1 += '1';
+		}
+		//往反方向还原
+		tx += Direct[i][0] * 6;
+		ty += Direct[i][1] * 6;
+		//往反方向记录连续棋子个数
+		while (tx >= 0 && tx < 15 && ty >= 0 && ty < 15 && Gobang::getBoard(tx, ty) == Side)
+		{
+			len++;
+			tx += Direct[i][0];
+			ty += Direct[i][1];
+		}
+		p2.x = tx; p2.y = ty; //记录端点2
+		//记录另一端五个点的棋子情况
+		for (j = 0; j < 5; j++, tx += Direct[i][0], ty += Direct[i][1]) {
+			if (Gobang::getBoard(tx, ty) == EMPTY && tx >= 0 && ty >= 0)
+				side2 += '#';
+			else if (Gobang::getBoard(tx, ty) == Side && tx >= 0 && ty >= 0)
+				side2 += '0';
+			else
+				side2 += '1';
+		}
+		//判断具体情况
+		k = 0;
+		if (len == 3)
+		{
+			if (side1.compare(0, 2, "##") == 0 && side2.compare(0, 2, "##") == 0)
+				k = 1;
+		}
+		else if (len == 2)
+		{
+			if ((side1.compare(0, 3, "#0#") == 0 && side2[0] == '#') || (side2.compare(0, 3, "#0#") == 0 && side1[0] == '#'))
+				k = 1;
+		}
+		else if (len == 1)
+		{
+			if ((side1.compare(0, 4, "#00#") == 0 && side2[0] == '#') || (side2.compare(0, 4, "#00#") == 0 && side1[0] == '#'))
+				k = 1;
+		}
+
+		if (k == 1)
+		{
+			MakeMove(p1, COM);
+			value1 = NegaScoutSearch(1, -INFINITY, +INFINITY, COM);
+			MakeNullMove(p1);
+			MakeMove(p2, COM);
+			value2 = NegaScoutSearch(1, -INFINITY, +INFINITY, COM);
+			MakeNullMove(p2);
+			if (value1 > value2)
 			{
-				Gobang::setBoard(m, n, COM);
-				for (i = 0; i < 4; i++) //四个方向上进行查找
-				{
-					tx = m; ty = n;
-					len = 0; //初始化各变量
-					//找到一个方向上距离最远的同颜色棋子位置
-					while (tx >= 0 && tx < 15 && ty >= 0 && ty < 15 && Gobang::getBoard(tx, ty) == Side)
-					{
-						tx -= Direct[i][0];
-						ty -= Direct[i][1];
-					}
-					tx += Direct[i][0];
-					ty += Direct[i][1];
-					//往反方向记录连续棋子个数
-					while (tx >= 0 && tx < 15 && ty >= 0 && ty < 15 && Gobang::getBoard(tx, ty) == Side)
-					{
-						len++;
-						tx += Direct[i][0];
-						ty += Direct[i][1];
-					}
-					if (len == 5)
-					{
-						x = m; y = n;
-						return 1;
-					}
-				}
-				Gobang::setEmpty(m, n);
+				best_move.x = p1.x;
+				best_move.y = p1.y;
 			}
+			else
+			{
+				best_move.x = p2.x;
+				best_move.y = p2.y;
+			}			
+			return 1;
 		}
 	}
 	return 0;
 }
 
 //搜索前的预判
-int Gobang_Rules::PreJudge(int &x, int &y)
+int Gobang_Rules::PreJudge(int x, int y)
 {
-	if (PreJudge_IsFive(x, y) == 0)  //不构成连子
+	if (PreJudge_IsFive() == 0)  //不构成连子
 	{
-		if (PreJudge_IsFour(x, y) == 0)  //没有必须的防守
+		if (PreJudge_IsFour(x, y) == 0 && PreJudge_IsThree(x,y) == 0)  //没有必须的防守
 			return 0;
 	}
 	return 1;
@@ -697,6 +767,16 @@ void Gobang_Rules::Analysis(int x, int y)
 	}
 }
 
+void Gobang_Rules::MakeMove(Point move, int player)
+{
+	Gobang::setBoard(move.x, move.y, player);
+}
+
+void Gobang_Rules::MakeNullMove(Point move)
+{
+	Gobang::setEmpty(move.x, move.y);
+}
+
 //创建可能的落子列表
 int Gobang_Rules::CreateMoveList(int depth)
 {
@@ -709,8 +789,8 @@ int Gobang_Rules::CreateMoveList(int depth)
 			//位置为空，且周围3×3范围内有棋子
 			if (Gobang::getBoard(x, y) == EMPTY && Gobang::IsNeighbor(x, y) && IsLegal(x, y))
 			{
-				MoveList[depth][MoveCount].x = x;
-				MoveList[depth][MoveCount].y = y;
+				MoveList[depth][MoveCount].move.x = x;
+				MoveList[depth][MoveCount].move.y = y;
 				MoveCount++;
 			}
 		}
@@ -721,8 +801,9 @@ int Gobang_Rules::CreateMoveList(int depth)
 //极大极小值搜索算法
 int Gobang_Rules::minmaxSearch(int depth)
 {
-	int bestMoveX, bestMoveY, bestValue = -INFINITY;
+	int bestValue = -INFINITY;
 	int i, MoveCount;
+	Point bestMove;
 	if (depth == 0)
 		return Evaluate(COM);
 	else
@@ -730,25 +811,19 @@ int Gobang_Rules::minmaxSearch(int depth)
 		MoveCount = CreateMoveList(depth);
 		for (i = 0; i < MoveCount; i++)
 		{
-			Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, COM); //生成棋面
+			MakeMove(MoveList[depth][i].move, COM); //生成棋面
 			int value = MinSearch(depth - 1);
+			MakeNullMove(MoveList[depth][i].move); //恢复棋面
 			if (value > bestValue)
 			{
 				bestValue = value;
-				bestMoveX = MoveList[depth][i].x;
-				bestMoveY = MoveList[depth][i].y;
-
+				bestMove = MoveList[depth][i].move;
 			}
 			else if (value == bestValue)
-			{
-				bestMoveX = MoveList[depth][i].x;
-				bestMoveY = MoveList[depth][i].y;
-			}
-			Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y); //恢复棋面
+				bestMove = MoveList[depth][i].move;
 		}
 	}
-	X = bestMoveX;
-	Y = bestMoveY;
+	best_move = bestMove;
 }
 
 //极大值搜索算法
@@ -763,9 +838,9 @@ int Gobang_Rules::MaxSearch(int depth)
 		MoveCount = CreateMoveList(depth);
 		for (i = 0; i < MoveCount; i++)
 		{
-			Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, COM);
+			MakeMove(MoveList[depth][i].move, COM);
 			value = MinSearch(depth - 1);
-			Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y);
+			MakeNullMove(MoveList[depth][i].move);
 			if (value > bestValue)
 				bestValue = value;
 		}
@@ -785,9 +860,9 @@ int Gobang_Rules::MinSearch(int depth)
 		MoveCount = CreateMoveList(depth);
 		for (i = 0; i < MoveCount; i++)
 		{
-			Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, MAN);
+			MakeMove(MoveList[depth][i].move, MAN);
 			value = MaxSearch(depth - 1);
-			Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y);
+			MakeNullMove(MoveList[depth][i].move);
 			if (value < bestValue)
 				bestValue = value;
 		}
@@ -807,14 +882,13 @@ int Gobang_Rules::Alphabeta(int depth, int alpha, int beta, int player)
 		for (i = 0; i < MoveCount; i++)
 		{
 
-			Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, COM);
+			MakeMove(MoveList[depth][i].move, COM);
 			value = Alphabeta(depth - 1, alpha, beta, MAN);
-			Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y);
+			MakeNullMove(MoveList[depth][i].move);
 			if (value > alpha)
 			{
 				alpha = value;
-				X = MoveList[depth][i].x;
-				Y = MoveList[depth][i].y;
+				best_move = MoveList[depth][i].move;
 			}
 			if (alpha >= beta)
 				return alpha;
@@ -828,9 +902,9 @@ int Gobang_Rules::Alphabeta(int depth, int alpha, int beta, int player)
 		for (i = 0; i < MoveCount; i++)
 		{
 
-			Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, MAN);
+			MakeMove(MoveList[depth][i].move, MAN);
 			value = Alphabeta(depth - 1, alpha, beta, COM);
-			Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y);
+			MakeNullMove(MoveList[depth][i].move);
 			if (value < beta)
 				beta = value;
 			if (beta <= alpha)
@@ -852,9 +926,9 @@ int Gobang_Rules::NegaScoutSearch(int depth, int alpha, int beta, int player)
 	MoveCount = CreateMoveList(depth);
 	for (i = 0; i < MoveCount; i++)
 	{
-		Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, player);
+		Gobang::setBoard(MoveList[depth][i].move.x, MoveList[depth][i].move.y, player);
 		value = -NegaScoutSearch(depth - 1, -beta, -alpha, notplayer(player));
-		Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y);
+		Gobang::setEmpty(MoveList[depth][i].move.x, MoveList[depth][i].move.y);
 		if (value >= beta)
 			return beta;
 		if (value > alpha)
@@ -862,12 +936,18 @@ int Gobang_Rules::NegaScoutSearch(int depth, int alpha, int beta, int player)
 			alpha = value;
 			if (depth == max_depth)
 			{
-				X = MoveList[depth][i].x;
-				Y = MoveList[depth][i].y;
+				best_move.x = MoveList[depth][i].move.x;
+				best_move.y = MoveList[depth][i].move.y;
 			}
 		}
 	}
 	return alpha;
+}
+
+//将置换表标识置为hash_EMPTY
+void Gobang_Rules::EmptyHashTable()
+{
+	memset(hashTable, 0, sizeof(HASH)*TableSize);
 }
 
 //校验置换表中的元素
@@ -894,6 +974,9 @@ int Gobang_Rules::ProbeHash(int depth, int alpha, int beta, Point &bestMove) {
 //添加元素到置换表中
 void Gobang_Rules::RecordHash(int depth, int val, int hashf, Point bestMove) {
 	HASH *phash = &hashTable[ZobristKey & (TableSize - 1)];
+	if (phash->flags != hash_EMPTY && phash->depth > depth)
+		return;
+
 	phash->key = ZobristKey;
 	phash->best = bestMove;
 	phash->value = val;
@@ -922,33 +1005,103 @@ int Gobang_Rules::NegaScout_hash(int depth, int alpha, int beta, int player)
 	MoveCount = CreateMoveList(depth);
 	for (i = 0; i < MoveCount; i++)
 	{
-		Gobang::setBoard(MoveList[depth][i].x, MoveList[depth][i].y, player);
+		MakeMove(MoveList[depth][i].move, player);
 		value = -NegaScout_hash(depth - 1, -beta, -alpha, notplayer(player));
-		Gobang::setEmpty(MoveList[depth][i].x, MoveList[depth][i].y);
+		MakeNullMove(MoveList[depth][i].move);
 		if (value >= beta)
 		{
-			RecordHash(depth, value, hash_BETA, bestMove);
+			RecordHash(depth, value, hash_BETA, MoveList[depth][i].move);
 			return beta;
 		}
 		if (value > alpha)
 		{
 			hashf = hash_EXACT;
 			alpha = value;
-			bestMove.x = MoveList[depth][i].x;
-			bestMove.y = MoveList[depth][i].y;
+			//bestMove = MoveList[depth][i].move;
 			if (depth == max_depth)
-			{
-				X = MoveList[depth][i].x;
-				Y = MoveList[depth][i].y;
-			}
+				best_move = MoveList[depth][i].move;
 		}
 
 	}
-	RecordHash(depth, alpha, hashf, bestMove);
+
+	RecordHash(depth, alpha, hashf, MoveList[depth][i].move);
 	return alpha;
 }
 
+//获取历史得分
+int Gobang_Rules::GetHistoryScore(Point move)
+{
+	return historyTable[move.x][move.y];
+}
+
+//添加得分
+void Gobang_Rules::AddHistoryScore(int depth, Point move)
+{
+	historyTable[move.x][move.y] += 2;
+}
+
+void Gobang_Rules::SortMoveList(int depth, int MoveCount)
+{
+	int i;
+	for (i = 0; i < MoveCount; i++)
+		MoveList[depth][i].score = GetHistoryScore(MoveList[depth][i].move);
+
+	Gobang::MergeSort(MoveList[depth], MoveCount);
+}
 
 
+int Gobang_Rules::NegaScout_hash_history(int depth, int alpha, int beta, int player)
+{
+	static int max_depth = depth;
+	int i, value, MoveCount;
+	Point bestMove;
+	int bestValue = -1;
+	/*for (int i = 0; i < 15; i++)
+	{
+		for (int j = 0; j < 15; j++)
+			cout << historyTable[i][j];
+		cout << endl;
+	}*/
+
+	int hashf = hash_ALPHA;
+	if ((value = ProbeHash(depth, alpha, beta, bestMove)) != valUNKNOWN)
+		return value;
+
+	if (depth == 0)
+	{
+		value = Evaluate(player);
+		RecordHash(depth, value, hash_EXACT, bestMove);
+		return value;
+	}
+
+	MoveCount = CreateMoveList(depth);
+	SortMoveList(depth, MoveCount);
+
+	for (i = 0; i < MoveCount; i++)
+	{
+		MakeMove(MoveList[depth][i].move, player);
+		value = -NegaScout_hash_history(depth - 1, -beta, -alpha, notplayer(player));
+		MakeNullMove(MoveList[depth][i].move);
+		if (value >= beta)
+		{
+			RecordHash(depth, value, hash_BETA, MoveList[depth][i].move);
+			AddHistoryScore(depth, MoveList[depth][i].move);
+			return beta;
+		}
+		if (value > alpha)
+		{
+			hashf = hash_EXACT;
+			alpha = value;
+			bestValue = i;
+			if (depth == max_depth)
+				best_move = MoveList[depth][i].move;
+		}
+
+	}
+	if (bestValue != -1)
+		AddHistoryScore(depth, MoveList[depth][i].move);
+	RecordHash(depth, alpha, hashf, MoveList[depth][i].move);
+	return alpha;
+}
 #endif
 
