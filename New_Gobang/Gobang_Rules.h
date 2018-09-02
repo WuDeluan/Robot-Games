@@ -15,7 +15,7 @@ public:
 	int PreJudge_IsFive(); //预判是否有连子的可能
 	int PreJudge_IsThree(int x, int y); //预判是否存在活三
 	int PreJudge(int x, int y);  //搜索前的预判
-	int IsLegal(int x, int y); //是否存在禁手 
+	int IsLegal(int x, int y);//是否存在禁手 
 	int Evaluate(int palyer); //估值函数，对某一局面的估值
 	void Analysis(int x, int y);  //对某一点的估值判断
 	int CreateMoveList(int depth);  //生成可能的落子点列表
@@ -35,6 +35,8 @@ public:
 	void AddHistoryScore(int score, Point move); //添加得分
 	void SortMoveList(int depth, int MoveCount); //对可能的着法进行排序
 	int NegaScout_hash_history(int depth, int alpha, int beta, int player); //带历史得分表的负极值搜索
+	void UpdateKillers(Point move, int depth); //更新杀手启发表
+	int PVS(int depth, int alpha, int beta, int player);
 };
 
 //指定开局
@@ -152,7 +154,7 @@ int Gobang_Rules::PreJudge_IsFive()
 						tx += Direct[i][0];
 						ty += Direct[i][1];
 					}
-					if (len == 5)
+					if (len >= 5)
 					{
 						best_move.x = m;
 						best_move.y = n;
@@ -311,7 +313,7 @@ int Gobang_Rules::PreJudge_IsThree(int x, int y)
 		k = 0;
 		if (len == 3)
 		{
-			if (side1.compare(0, 2, "##") == 0 && side2.compare(0, 2, "##") == 0)
+			if ((side1.compare(0, 2, "##") == 0 && side2[0] == '#') || (side1[0] == '#' && side2.compare(0, 2, "##") == 0))
 				k = 1;
 		}
 		else if (len == 2)
@@ -430,7 +432,6 @@ int Gobang_Rules::IsLegal(int x, int y)
 			if (side2[0] == '#' && side1.compare(0, 3, "#0#") == 0)
 				three++;
 		}
-		//长度为1的情况待补充
 	}
 
 	if (three > 1 || four > 1)
@@ -703,7 +704,7 @@ void Gobang_Rules::Analysis(int x, int y)
 					//cout << "冲四" << endl;
 					TypeRecord[x][y][i] = FFOUR;
 				}
-				else if (side1.compare(0, 2, "##") == 0 && side2.compare(0, 2, "##") == 0)
+				else if ((side1.compare(0, 2, "##") == 0 && side2[0] == '#' )||( side1[0] == '#' && side2.compare(0, 2, "##") == 0))
 				{
 					//cout << "连活三" << endl;
 					TypeRecord[x][y][i] = THREE;
@@ -782,16 +783,27 @@ int Gobang_Rules::CreateMoveList(int depth)
 {
 	int x, y;
 	int MoveCount = 0;
+
+	if (Killers[depth][0].score != -1) //如果存在启发点，加入列表前端
+		MoveList[depth][MoveCount++].move = Killers[depth][0].move;
+		if(Killers[depth][1].score != -1)
+			MoveList[depth][MoveCount++].move = Killers[depth][1].move;
+
 	for (x = 0; x < 15; x++)
 	{
 		for (y = 0; y < 15; y++)
 		{
 			//位置为空，且周围3×3范围内有棋子
-			if (Gobang::getBoard(x, y) == EMPTY && Gobang::IsNeighbor(x, y) && IsLegal(x, y))
+			if (Gobang::getBoard(x, y) == EMPTY && Gobang::IsNeighbor(x, y))
 			{
-				MoveList[depth][MoveCount].move.x = x;
-				MoveList[depth][MoveCount].move.y = y;
-				MoveCount++;
+				Gobang::setBoard(x, y, COM);
+				if (IsLegal(x, y))
+				{
+					MoveList[depth][MoveCount].move.x = x;
+					MoveList[depth][MoveCount].move.y = y;
+					MoveCount++;
+				}
+				Gobang::setEmpty(x, y);
 			}
 		}
 	}
@@ -926,19 +938,16 @@ int Gobang_Rules::NegaScoutSearch(int depth, int alpha, int beta, int player)
 	MoveCount = CreateMoveList(depth);
 	for (i = 0; i < MoveCount; i++)
 	{
-		Gobang::setBoard(MoveList[depth][i].move.x, MoveList[depth][i].move.y, player);
+		MakeMove(MoveList[depth][i].move, player);
 		value = -NegaScoutSearch(depth - 1, -beta, -alpha, notplayer(player));
-		Gobang::setEmpty(MoveList[depth][i].move.x, MoveList[depth][i].move.y);
+		MakeNullMove(MoveList[depth][i].move);
 		if (value >= beta)
 			return beta;
 		if (value > alpha)
 		{
 			alpha = value;
 			if (depth == max_depth)
-			{
-				best_move.x = MoveList[depth][i].move.x;
-				best_move.y = MoveList[depth][i].move.y;
-			}
+				best_move = MoveList[depth][i].move;
 		}
 	}
 	return alpha;
@@ -1049,19 +1058,12 @@ void Gobang_Rules::SortMoveList(int depth, int MoveCount)
 	Gobang::MergeSort(MoveList[depth], MoveCount);
 }
 
-
 int Gobang_Rules::NegaScout_hash_history(int depth, int alpha, int beta, int player)
 {
 	static int max_depth = depth;
 	int i, value, MoveCount;
 	Point bestMove;
 	int bestValue = -1;
-	/*for (int i = 0; i < 15; i++)
-	{
-		for (int j = 0; j < 15; j++)
-			cout << historyTable[i][j];
-		cout << endl;
-	}*/
 
 	int hashf = hash_ALPHA;
 	if ((value = ProbeHash(depth, alpha, beta, bestMove)) != valUNKNOWN)
@@ -1103,5 +1105,62 @@ int Gobang_Rules::NegaScout_hash_history(int depth, int alpha, int beta, int pla
 	RecordHash(depth, alpha, hashf, MoveList[depth][i].move);
 	return alpha;
 }
+
+void Gobang_Rules::UpdateKillers(Point move, int depth)
+{
+	if (Killers[depth][0].score != -1) //如果已经存入一个启发点
+	{
+		if (Killers[depth][0].move.x != move.x || Killers[depth][0].move.y != move.y) //且与当前点不同
+		{
+			//更新第二个启发点
+			Killers[depth][1].move = Killers[depth][0].move; 
+			Killers[depth][1].score = +INFINITY - 1; //赋值便于排序
+		}
+	}
+	//更新第一个启发点
+	Killers[depth][0].move = move;
+	Killers[depth][0].score = +INFINITY;
+}
+
+int Gobang_Rules::PVS(int depth, int alpha, int beta, int player)
+{
+	static int max_depth = depth;
+	int i, value, MoveCount, current;
+	bool foundPV = false;
+	
+	if (depth == 0)
+		return Evaluate(player);
+
+	MoveCount = CreateMoveList(depth);
+	for (i = 0; i < MoveCount; i++)
+	{
+		MakeMove(MoveList[depth][i].move, player);		
+		if (foundPV) 
+		{
+			value = -PVS(depth - 1, -alpha - 1, -alpha, notplayer(player));
+			if ((value > alpha) && (value < beta)) 
+			{ // 检查失败
+				value = -PVS(depth - 1, -beta, -value, notplayer(player));
+			}
+		}
+		else
+			value = -PVS(depth - 1, -beta, -alpha, notplayer(player));
+		MakeNullMove(MoveList[depth][i].move);
+		
+		if (value >= beta)					
+			return value;
+
+		if (value > alpha)
+		{
+			alpha = value;
+			foundPV = true;
+			if (depth == max_depth)
+				best_move = MoveList[depth][i].move;
+		}
+	}
+	return alpha;
+}
+
+
 #endif
 
