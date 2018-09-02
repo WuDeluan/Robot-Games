@@ -76,6 +76,7 @@ static HASH hashTable[TableSize];  //置换表
 static U64 ZobristKey; //当前键值值
 static MOVE MoveList[10][15 * 15];  //存储不同深度下可能的落子点
 static int historyTable[15][15];  //历史得分表
+static MOVE Killers[10][2];  //杀手启发表，每层分配两个杀手
 static int Direct[4][2] = { { 1,-1 },{ 1,0 },{ 1,1 },{ 0,1 } };  //四个方向上x,y分别进行的移动值
 
 //26这种开局的黑3位置坐标，前13个为直指开局，后13个为斜指开局
@@ -134,6 +135,7 @@ public:
 		ZobristKey = rand64();
 		InitializeHashKey();
 		ResetHistoryTable();
+		InitializeKillers();
 	}
 
 	//打印棋盘
@@ -191,6 +193,18 @@ public:
 		if (x >= 0 && x < 15 && y >= 0 && y < 15 && Board[x][y] == EMPTY) //在棋盘内，且为空
 		{
 			Board[x][y] = Piece_Color;
+			ZobristKey = ZobristKey ^ zobrist[Piece_Color - 1][x][y];
+			return 0;
+		}
+		else
+			return -1;
+	}
+
+	int _setBoard(int x, int y, int Piece_Color)
+	{
+		if (x >= 0 && x < 15 && y >= 0 && y < 15 && Board[x][y] == EMPTY) //在棋盘内，且为空
+		{
+			Board[x][y] = Piece_Color;
 			sx.push(x); sy.push(y); //记录下棋步骤
 			ZobristKey = ZobristKey ^ zobrist[Piece_Color - 1][x][y];
 			return 0;
@@ -202,7 +216,7 @@ public:
 	//将棋盘位子置空
 	int setEmpty(int x, int y)
 	{
-		if (x >= 0 && x < 15 && y >= 0 && y < 15 && Board[x][y] != EMPTY) //在棋盘内，且为空
+		if (x >= 0 && x < 15 && y >= 0 && y < 15 && Board[x][y] != EMPTY) //在棋盘内，且不空
 		{
 			ZobristKey = ZobristKey ^ zobrist[Board[x][y] - 1][x][y];
 			Board[x][y] = EMPTY;
@@ -297,6 +311,12 @@ public:
 		for (i = 0; i < 15; i++)
 			for (j = 0; j < 15; j++)
 				historyTable[i][j] = PosValue[i][j];
+	}
+
+	//初始化杀手启发表
+	void InitializeKillers() 
+	{
+		memset(Killers, -1, sizeof(MOVE) * 10 * 2);
 	}
 
 	//位置周围3×3范围内是否有棋子
