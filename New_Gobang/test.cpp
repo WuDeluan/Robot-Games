@@ -66,7 +66,7 @@ int main()
 	Go.Gobang::setBoard(6, G, WHITE);
 	Go.Gobang::Print_Checkerboard(); cout << ZobristKey << endl;*/
 
-	
+	/*
 	COM = BLACK; MAN = WHITE;
 	Go.Gobang::setBoard(7, H, BLACK);
 	Go.Gobang::setBoard(6, I, WHITE);
@@ -111,7 +111,7 @@ int main()
 		cout << "黑方落子： (" << 15 - best_move.x << " , " << char(best_move.y + 'A') << ")" << endl;
 		Go.Gobang::Print_Checkerboard();
 	}
-
+	*/
 
 	//各搜索算法测试
 	/*
