@@ -160,7 +160,9 @@ void Gobang_Steps::ForthStep()
 //打点选择
 void Gobang_Steps::FifthStep()
 {
-	int i, x, z; char y;
+	int i, x, z; char y; 
+	Point Point;
+	MOVE P[3] = { 0,0,-INFINITY - 1, 0,0,-INFINITY - 1, 0,0,-INFINITY - 1, };
 	//人为黑方
 	if (MAN == BLACK)
 	{
@@ -186,21 +188,22 @@ void Gobang_Steps::FifthStep()
 		//电脑选择一个棋子作为黑5
 		for (i = 0; i < points; i++) //清空打点的棋子
 			Gobang::setBack();
-		Gobang_Rules::SaveOnePoint(x, z); //给出黑5坐标
+		Gobang_Rules::SaveOnePoint(&Point,points); //给出黑5坐标
 		(COM == BLACK) ? cout << "（黑方）" : cout << "（白方）";
-		cout << "选择的坐标是：(" << 15 - x << " , " << (char)(z + 'A') << ")" << endl;
-		Gobang::_setBoard(x, z, BLACK); //落子
-		steps[2].x = x; steps[2].y = z; //记录黑5棋子坐标
+		cout << "选择的坐标是：(" << 15 - Point.x << " , " << (char)(Point.y + 'A') << ")" << endl;
+		Gobang::_setBoard(Point.x, Point.y, BLACK); //落子
+		steps[2].x = Point.x; steps[2].y = Point.y; //记录黑5棋子坐标
 		Gobang::Print_Checkerboard(); //打印当前棋盘
 	}
 	//电脑为黑方
 	else if (COM == BLACK)
 	{
+		BlackFive(P);
 		//电脑给出打点位置坐标
 		for (i = 0; i < points; i++)
 		{
-			BlackFive(x, z);
-			cout << "第 " << i + 1 << " 个棋子: " << "(" << 15 - x << " , " << char(z + 'A') << ")" << endl;
+			Gobang::_setBoard(P[i].move.x, P[i].move.y,BLACK);
+			cout << "第 " << i + 1 << " 个棋子: " << "(" << 15 - P[i].move.x << " , " << (char)(P[i].move.y + 'A') << ")" << endl;
 		}
 		Gobang::Print_Checkerboard(); //打印打点后的棋盘
 		//人选择一个棋子作黑5
@@ -220,6 +223,7 @@ void Gobang_Steps::FifthStep()
 	}
 }
 
+
 void Gobang_Steps::Continue()
 {
 	int x, y, tx, ty;
@@ -232,7 +236,7 @@ void Gobang_Steps::Continue()
 			Gobang::_setBoard(tx, ty, COM);
 		else
 		{
-			NegaScout_hash_history_killer(3, -INFINITY, +INFINITY, COM);
+			Search(3, -INFINITY, +INFINITY, COM);
 			Gobang::_setBoard(best_move.x, best_move.y, COM);
 			EmptyHashTable();
 		}	
@@ -249,7 +253,7 @@ void Gobang_Steps::Continue()
 			x = 15 - x;
 			y = z - 'A';
 			if (Gobang::_setBoard(x, y, MAN) == 0)
-				if (IsLegal(x, y) == 0)
+				if (IsLegal(x, y) == 0 && MAN == BLACK)
 				{
 					Gobang::setBack();
 					cout << "禁手" << endl;
@@ -265,11 +269,12 @@ void Gobang_Steps::Continue()
 			cout << "恭喜你获胜了!" << endl;
 			break;
 		}
+
 		//电脑
 		tx = x, ty = y;
 		if (PreJudge(tx, ty) == 0)
 		{
-			NegaScout_hash_history_killer(3, -INFINITY, +INFINITY, COM);
+			Search(3, -INFINITY, +INFINITY, COM);
 			EmptyHashTable();
 		}
 		Gobang::_setBoard(best_move.x, best_move.y, COM);
