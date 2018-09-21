@@ -9,8 +9,8 @@ public:
 	void SpecificOpening(); //指定开局
 	int WhetherChange(Point step[]); //是否三手交换判断
 	void WhiteFour(); //白4坐标
-	void BlackFive(int &x, int &y); //黑5坐标
-	void SaveOnePoint(int &x, int &y); //从黑5打点坐标中选择一个
+	void BlackFive(MOVE P[]); //黑5坐标
+	void SaveOnePoint(Point *P,int points); //从黑5打点坐标中选择一个
 	int PreJudge_IsFour(int x, int y); //预判是否出现必须防守的情况
 	int PreJudge_IsFive(); //预判是否有连子的可能
 	int PreJudge_IsThree(int x, int y); //预判是否存在活三
@@ -102,10 +102,10 @@ void Gobang_Rules::WhiteFour()
 }
 
 //黑5坐标
-void Gobang_Rules::BlackFive(int &x, int &y)
+void Gobang_Rules::BlackFive(MOVE P[])
 {
 	//暂定由随机数产生
-	while (true)
+	/*while (true)
 	{
 		srand((unsigned)time(NULL));
 		x = random(5, 9);
@@ -115,15 +115,65 @@ void Gobang_Rules::BlackFive(int &x, int &y)
 			_setBoard(x, y, BLACK);
 			break;
 		}
+	}*/
+	Point point;
+	MOVE move[25] = { 0 },t;
+	int x, y, value, k = 0;
+	for (x = 5; x < 10; x++)
+	{
+		for (y = 5; y < 10; y++)
+		{
+			if (Gobang::getBoard(x,y) == EMPTY)
+			{
+				Gobang::setBoard(x, y, BLACK);
+				value = Evaluate(BLACK);
+				Gobang::setEmpty(x, y);
+
+				point.x = x; point.y = y;
+				move[k].score = value;
+				move[k++].move = point;			
+			}
+		}
 	}
+
+	for (x = 0; x < k; x++)
+	{
+		for (y = 0; y < k - 1 - x; y++)
+		{
+			if (move[y].score < move[y + 1].score)
+			{
+				t = move[y];
+				move[y] = move[y + 1];
+				move[y + 1] = t;
+			}
+		}
+	}
+	for (x = 0; x < 3; x++)
+		P[x] = move[x];
 }
 
 //从黑5打点坐标中选择一个
-void Gobang_Rules::SaveOnePoint(int &x, int &y)
+void Gobang_Rules::SaveOnePoint(Point *P,int points)
 {
 	//暂定为第一个打点坐标
-	x = steps[2].x;
+	/*x = steps[2].x;
 	y = steps[2].y;
+	*/
+
+	int value;
+	int i, k = -INFINITY - 1;
+	for (i = 1; i < points; i++)
+	{
+		Gobang::setBoard(steps[i + 2].x, steps[i + 2].y, BLACK);
+		value = Evaluate(WHITE);
+		Gobang::setEmpty(steps[i + 2].x, steps[i + 2].y);
+		if (value > k)
+		{
+			k = value;
+			P->x = steps[i + 2].x;
+			P->y = steps[i + 2].y;
+		}	
+	}
 }
 
 //预判是否有连子的可能
@@ -372,6 +422,9 @@ int Gobang_Rules::IsLegal(int x, int y)
 	int four = 0, three = 0;
 	string side1, side2;
 	int Color = Gobang::getBoard(x, y);
+	//不对白子做判断
+	if (Color == WHITE)
+		return 1;
 	for (i = 0; i < 4; i++)
 	{
 		len = 0;
@@ -801,14 +854,23 @@ int Gobang_Rules::CreateMoveList(int depth)
 			//位置为空，且周围3×3范围内有棋子
 			if (Gobang::getBoard(x, y) == EMPTY && Gobang::IsNeighbor(x, y))
 			{
-				Gobang::setBoard(x, y, COM);
-				if (IsLegal(x, y))
+				if (COM == BLACK)
+				{
+					Gobang::setBoard(x, y, COM);
+					if (IsLegal(x, y))
+					{
+						MoveList[depth][MoveCount].move.x = x;
+						MoveList[depth][MoveCount].move.y = y;
+						MoveCount++;
+					}
+					Gobang::setEmpty(x, y);
+				}
+				else
 				{
 					MoveList[depth][MoveCount].move.x = x;
 					MoveList[depth][MoveCount].move.y = y;
 					MoveCount++;
 				}
-				Gobang::setEmpty(x, y);
 			}
 		}
 	}
