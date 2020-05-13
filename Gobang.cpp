@@ -9,3 +9,6 @@ int main()
 	ManToCom Gobang2 = ManToCom();
 	Gobang2.Print_Menu2();
 }
+
+
+//testtest
